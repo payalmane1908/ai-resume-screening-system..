@@ -1,0 +1,224 @@
+{% extends 'base.html' %}
+{% block title %}Dashboard | Resume AI{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h3 class="m-0">Candidate Dashboard</h3>
+    <div class="d-flex gap-2">
+        <a class="btn btn-outline-primary btn-sm" href="{{ url_for('screening.export_excel') }}">Export Excel</a>
+        <a class="btn btn-outline-danger btn-sm" href="{{ url_for('screening.export_pdf') }}">Export PDF</a>
+    </div>
+</div>
+
+{% if candidates %}
+<div class="row g-3 mb-4">
+    <div class="col-md-4"><div class="card stat-card"><div class="card-body"><div class="text-muted small">Top Candidate</div><div class="h5">{{ candidates[0].name }}</div><div class="fw-semibold">{{ candidates[0].final_score }}%</div></div></div></div>
+    <div class="col-md-4"><div class="card stat-card"><div class="card-body"><div class="text-muted small">Profiles Screened</div><div class="h5">{{ candidates|length }}</div></div></div></div>
+    <div class="col-md-4"><div class="card stat-card"><div class="card-body"><div class="text-muted small">Avg Final Score</div><div class="h5">{{ (candidates|map(attribute='final_score')|sum / (candidates|length))|round(2) }}%</div></div></div></div>
+</div>
+{% endif %}
+
+{% if not candidates %}
+<div class="card border-0 shadow-sm">
+    <div class="card-body text-center py-5">
+        <h5 class="mb-2">No candidates available yet</h5>
+        <p class="text-muted mb-3">Upload resumes from the home page to generate rankings and analytics.</p>
+        <a class="btn btn-primary" href="{{ url_for('screening.index') }}">Go to Upload</a>
+    </div>
+</div>
+{% endif %}
+
+{% if candidates %}
+<div class="row g-4">
+    <div class="col-lg-8">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body">
+                <div class="row g-2 mb-3">
+                    <div class="col-md-3"><input id="filterName" class="form-control" placeholder="Search candidates..."></div>
+                    <div class="col-md-2">
+                        <select id="filterStatus" class="form-select">
+                            <option value="">All Status</option>
+                            <option value="Pending">Pending</option>
+                            <option value="Selected">Selected</option>
+                            <option value="Rejected">Rejected</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2"><input id="filterScore" class="form-control" type="number" min="0" max="100" placeholder="Min Score"></div>
+                    <div class="col-md-3">
+                        <select id="sortBy" class="form-select">
+                            <option value="rank_asc">Sort: Rank (Default)</option>
+                            <option value="score_desc">Final Score (High-Low)</option>
+                            <option value="score_asc">Final Score (Low-High)</option>
+                            <option value="name_asc">Name (A-Z)</option>
+                            <option value="skillmatch_desc">Skills (Most-Least)</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <button class="btn btn-outline-primary w-100" id="compareBtn" disabled data-bs-toggle="modal" data-bs-target="#compareModal">Compare</button>
+                    </div>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle" id="candidatesTable">
+                        <thead>
+                            <tr>
+                                <th><input type="checkbox" id="selectAll"></th>
+                                <th class="sortable" data-sort="rank">Rank <i class="bi bi-sort-numeric-down"></i></th>
+                                <th class="sortable" data-sort="name">Candidate <i class="bi bi-sort-alpha-down"></i></th>
+                                <th class="sortable" data-sort="score">Score <i class="bi bi-bar-chart"></i></th>
+                                <th>Keywords</th>
+                                <th>Semantic</th>
+                                <th class="sortable" data-sort="skillmatch">Skills</th>
+                                <th>Status</th>
+                                <th class="text-end">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for c in candidates %}
+                            <tr data-id="{{ c.id }}" data-name="{{ c.name|lower }}" data-status="{{ c.status }}" data-score="{{ c.final_score }}" data-rank="{{ c.rank }}" data-skillmatch="{{ c.matched_skills|length }}">
+                                <td><input type="checkbox" class="candidate-select" data-id="{{ c.id }}"></td>
+                                <td><span class="text-muted small">#</span>{{ c.rank }}</td>
+                                <td>
+                                    <div class="fw-bold">{{ c.name }}</div>
+                                    <div class="text-muted x-small">{{ c.source_file }}</div>
+                                    <div class="mt-1">
+                                        {% for tag in c.tags[:3] %}
+                                        <span class="badge bg-light text-primary border x-small">{{ tag }}</span>
+                                        {% endfor %}
+                                    </div>
+                                </td>
+                                <td>
+                                    <div class="d-flex align-items-center gap-2">
+                                        <span class="badge score-badge {% if c.final_score >= 80 %}score-high{% elif c.final_score >= 60 %}score-mid{% else %}score-low{% endif %}">
+                                            {{ c.final_score }}%
+                                        </span>
+                                        <div class="x-small text-muted" title="AI Fit Prediction">
+                                            <i class="bi bi-robot"></i> {{ c.ai_fit_score }}%
+                                        </div>
+                                    </div>
+                                </td>
+                                <td><div class="small">{{ c.keyword_score }}%</div></td>
+                                <td><div class="small">{{ c.semantic_score }}%</div></td>
+                                <td>
+                                    <div class="small" data-bs-toggle="tooltip" title="{{ c.matched_skills|join(', ') }}">
+                                        {{ c.matched_skills|length }} matched
+                                    </div>
+                                </td>
+                                <td>
+                                    <span class="badge rounded-pill {% if c.status == 'Selected' %}bg-success{% elif c.status == 'Rejected' %}bg-danger{% else %}bg-secondary{% endif %}">
+                                        {{ c.status }}
+                                    </span>
+                                </td>
+                                <td class="text-end">
+                                    <div class="btn-group">
+                                        <button class="btn btn-sm btn-light preview-btn" data-id="{{ c.id }}" title="View Resume"><i class="bi bi-eye"></i></button>
+                                        <button class="btn btn-sm btn-light status-btn" data-id="{{ c.id }}" data-status="Selected" title="Select"><i class="bi bi-check2 text-success"></i></button>
+                                        <button class="btn btn-sm btn-light status-btn" data-id="{{ c.id }}" data-status="Rejected" title="Reject"><i class="bi bi-x-lg text-danger"></i></button>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-4">
+        <!-- Advanced Analytics Cards -->
+        <div class="card border-0 shadow-sm mb-3">
+            <div class="card-header bg-transparent border-0 pb-0">
+                <h6 class="m-0 small text-muted fw-bold">TOP CANDIDATES</h6>
+            </div>
+            <div class="card-body"><canvas id="topScoresChart" height="180"></canvas></div>
+        </div>
+        <div class="card border-0 shadow-sm mb-3">
+            <div class="card-header bg-transparent border-0 pb-0">
+                <h6 class="m-0 small text-muted fw-bold">SKILL DISTRIBUTION</h6>
+            </div>
+            <div class="card-body"><canvas id="skillsChart" height="200"></canvas></div>
+        </div>
+        <div class="card border-0 shadow-sm mb-3">
+            <div class="card-header bg-transparent border-0 pb-0">
+                <h6 class="m-0 small text-muted fw-bold">SKILL GAP HEATMAP</h6>
+            </div>
+            <div class="card-body"><canvas id="gapChart" height="200"></canvas></div>
+        </div>
+        <div class="card border-0 shadow-sm mb-3">
+            <div class="card-header bg-transparent border-0 pb-0">
+                <h6 class="m-0 small text-muted fw-bold">BATCH SCORE TRENDS</h6>
+            </div>
+            <div class="card-body"><canvas id="trendsChart" height="200"></canvas></div>
+        </div>
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-transparent border-0 pb-0">
+                <h6 class="m-0 small text-muted fw-bold">EXPERIENCE DISTRIBUTION</h6>
+            </div>
+            <div class="card-body"><canvas id="expDistChart" height="200"></canvas></div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<div class="modal fade" id="resumeModal" tabindex="-1">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header"><h5 class="modal-title" id="resumeModalTitle">Resume</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+      <div class="modal-body">
+        <div class="card bg-light border-0 mb-3">
+          <div class="card-body p-3">
+            <h6 class="small fw-bold text-primary mb-1"><i class="bi bi-robot"></i> AI Summary</h6>
+            <div id="aiSummary" class="small text-muted"></div>
+          </div>
+        </div>
+        <div class="small mb-2"><b>Matched:</b> <span id="matchedSkills"></span></div>
+        <div class="small mb-3"><b>Missing:</b> <span id="missingSkills"></span></div>
+        <pre id="resumePreview" class="resume-preview"></pre>
+      </div>
+    </div>
+  </div>
+</div>
+
+  </div>
+</div>
+
+<!-- Comparison Modal -->
+<div class="modal fade" id="compareModal" tabindex="-1">
+  <div class="modal-dialog modal-xl">
+    <div class="modal-content">
+      <div class="modal-header"><h5 class="modal-title">Candidate Comparison</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+      <div class="modal-body">
+        <div class="row" id="comparisonRow"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- AI Assistant Floating Button -->
+<button class="btn btn-primary rounded-circle shadow-lg position-fixed bottom-0 end-0 m-4 p-3" id="aiAssistantBtn" style="width: 60px; height: 60px; z-index: 1050;">
+    <i class="bi bi-robot fs-3"></i>
+</button>
+
+<!-- AI Assistant Panel -->
+<div class="card shadow-lg position-fixed bottom-0 end-0 m-4 d-none" id="aiAssistantPanel" style="width: 350px; height: 500px; z-index: 1051; border-radius: 1rem; overflow: hidden;">
+    <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+        <span>AI Resume Advisor</span>
+        <button class="btn-close btn-close-white btn-sm" id="closeAiAssistant"></button>
+    </div>
+    <div class="card-body d-flex flex-column p-0">
+        <div id="aiChatMessages" class="flex-grow-1 p-3 overflow-auto small" style="background: #f8fafc;">
+            <div class="mb-2"><b>AI:</b> Hello! I can help you analyze candidates or suggest JD improvements. Ask me anything!</div>
+        </div>
+        <div class="p-2 border-top">
+            <div class="input-group">
+                <input type="text" id="aiChatInput" class="form-control form-control-sm" placeholder="Ask AI advisor...">
+                <button class="btn btn-primary btn-sm" id="sendAiChat"><i class="bi bi-send"></i></button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script id="candidatesData" type="application/json">{{ candidates|tojson }}</script>
+<script id="skillFrequencyData" type="application/json">{{ skill_frequency|tojson }}</script>
+{% endblock %}
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+{% endblock %}

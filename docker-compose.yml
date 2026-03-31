@@ -1,0 +1,27 @@
+version: '3.8'
+
+services:
+  web:
+    build: .
+    ports:
+      - "5000:5000"
+    volumes:
+      - .:/app
+      - uploads:/app/uploads
+    environment:
+      - FLASK_ENV=development
+      - DATABASE_PATH=/app/instance/resume_ai.db
+      - SMTP_SERVER=smtp.gmail.com
+      - SMTP_PORT=587
+      - SMTP_USER=${SMTP_USER}
+      - SMTP_PASSWORD=${SMTP_PASSWORD}
+      - SLACK_WEBHOOK_URL=${SLACK_WEBHOOK_URL}
+    restart: always
+
+volumes:
+  uploads:
+mail alerts for top candidates (use SMTP or SendGrid).
+
+Optional Slack alerts for new high-fit resumes.
+
+Alerts configurable per job/rol

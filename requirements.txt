@@ -1,0 +1,7 @@
+Flask
+pandas
+PyPDF2
+python-docx
+sentence-transformers
+openpyxl
+reportlab
