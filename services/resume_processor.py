@@ -66,7 +66,7 @@ def _candidate_result(name, source_file, resume_text, jd_text, jd_skills, min_ex
     # AI Enhancement: Fit Prediction logic
     fit_score = round((semantic * 0.7) + (keyword * 0.3), 2)
     
-    # AI Enhancement: Simple Summarization (first 200 chars or first 2 sentences)
+    # AI Enhancement: Simple Summarization
     summary = resume_text[:200].replace("\n", " ").strip() + "..."
     
     years = extract_years_of_experience(resume_text)
@@ -74,13 +74,35 @@ def _candidate_result(name, source_file, resume_text, jd_text, jd_skills, min_ex
     ach_score = achievements_score(profile["achievements"])
     final = weighted_score(keyword, semantic, exp_score, ach_score, weights)
     
-    suggestions = []
-    if missing:
-        suggestions.append(f"Improve missing skills: {', '.join(missing[:5])}")
-    if semantic < 55:
-        suggestions.append("Tailor resume summary closer to JD goals.")
-    if exp_score < 60:
-        suggestions.append("Add stronger impact bullets and role tenure details.")
+    # Explainable AI: Strengths & Weaknesses
+    strengths = []
+    weaknesses = []
+    
+    if len(matched) > 5: strengths.append(f"Strong skill alignment with {len(matched)} matching keywords.")
+    if semantic > 75: strengths.append("High contextual relevance to the job requirements.")
+    if years >= min_experience: strengths.append(f"Meets or exceeds experience requirement ({years} years).")
+    
+    if len(missing) > 3: weaknesses.append(f"Missing key technical skills: {', '.join(missing[:3])}")
+    if semantic < 50: weaknesses.append("Low semantic similarity to the job description.")
+    if years < min_experience: weaknesses.append(f"Experience ({years}y) is below the target ({min_experience}y).")
+
+    # Rejection Reasoning (Why Not Selected)
+    rejection_reason = None
+    if final < 60:
+        if years < min_experience: rejection_reason = "Insufficient years of relevant experience."
+        elif semantic < 50: rejection_reason = "Contextual fit does not align with role responsibilities."
+        else: rejection_reason = "Overall score below threshold for current batch."
+
+    # Final Natural Language Explanation
+    explanation = f"This candidate scored {final}% primarily due to "
+    if keyword > 70: explanation += f"excellent direct alignment with {len(matched)} key skills. "
+    elif semantic > 70: explanation += "high contextual relevance to the role's requirements. "
+    else: explanation += "a balanced mix of skills and experience. "
+    
+    if years >= min_experience:
+        explanation += f"They meet the seniority requirement with {years} years of experience."
+    else:
+        explanation += f"While they have {years} years of experience, they are slightly below the target of {min_experience}."
 
     return {
         "name": name,
@@ -99,10 +121,13 @@ def _candidate_result(name, source_file, resume_text, jd_text, jd_skills, min_ex
         "certifications": profile["certifications"],
         "achievements": profile["achievements"],
         "final_score": final,
-        "suggestions": suggestions,
         "ai_summary": summary,
         "ai_fit_score": fit_score,
-        "tags": tags
+        "tags": tags,
+        "ai_explanation": explanation,
+        "strengths": strengths,
+        "weaknesses": weaknesses,
+        "rejection_reason": rejection_reason
     }
 
 

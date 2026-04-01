@@ -37,9 +37,6 @@ def init_db():
         """
     )
 
-    _ensure_candidate_columns(cursor)
-    _ensure_user_columns(cursor)
-
     cursor.execute(
         """
         CREATE TABLE IF NOT EXISTS candidates (
@@ -60,10 +57,17 @@ def init_db():
             ai_summary TEXT,
             ai_fit_score REAL,
             tags TEXT,
+            ai_explanation TEXT,
+            strengths TEXT,
+            weaknesses TEXT,
+            rejection_reason TEXT,
             created_at TEXT DEFAULT CURRENT_TIMESTAMP
         )
         """
     )
+
+    _ensure_candidate_columns(cursor)
+    _ensure_user_columns(cursor)
 
     cursor.execute(
         """
@@ -117,10 +121,15 @@ def _ensure_candidate_columns(cursor):
         "missing_skills": "TEXT",
         "years_experience": "REAL DEFAULT 0",
         "keyword_score": "REAL DEFAULT 0",
+        "semantic_score": "REAL DEFAULT 0",
         "experience_score": "REAL DEFAULT 0",
         "ai_summary": "TEXT",
         "ai_fit_score": "REAL",
         "tags": "TEXT",
+        "ai_explanation": "TEXT",
+        "strengths": "TEXT",
+        "weaknesses": "TEXT",
+        "rejection_reason": "TEXT",
         # SQLite ALTER TABLE does not allow non-constant defaults like CURRENT_TIMESTAMP.
         "created_at": "TEXT",
     }

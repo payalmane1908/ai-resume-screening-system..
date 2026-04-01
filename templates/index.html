@@ -2,131 +2,125 @@
 {% block title %}Upload & Screen | Resume AI{% endblock %}
 {% block content %}
 <div class="row g-4">
-    <div class="col-12">
-        <div class="card hero-panel shadow-sm mb-3">
-            <div class="card-body">
-                <div>
-                    <h4 class="mb-1">AI Resume Screening Platform</h4>
-                    <div class="small opacity-75">Screen and rank candidates using skills, semantic relevance, and experience fit.</div>
+    <!-- Main Form -->
+    <div class="col-lg-8">
+        <div class="card glass-card border-0 shadow-sm mb-4">
+            <div class="card-body p-4">
+                <div class="d-flex align-items-center gap-2 mb-4">
+                    <i class="bi bi-cloud-arrow-up fs-4 text-primary"></i>
+                    <h5 class="m-0 fw-bold">Bulk Resume Screening</h5>
                 </div>
-            </div>
-        </div>
-        <div class="card border-0 shadow-sm mb-4">
-            <div class="card-body">
-                <div class="d-flex justify-content-between align-items-center mb-3">
-                    <h5 class="m-0">Active Job Openings</h5>
-                    <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#newJDModal">+ New JD</button>
-                </div>
-                <div class="list-group list-group-flush" id="jdList">
-                    {% for t in templates %}
-                    <div class="list-group-item d-flex justify-content-between align-items-center px-0">
-                        <div>
-                            <div class="fw-bold">{{ t.name }}</div>
-                            <div class="text-muted small">Created: {{ t.created_at[:10] }}</div>
-                        </div>
-                        <button class="btn btn-sm btn-outline-secondary template-btn" data-jd="{{ t.jd_text }}">Use JD</button>
-                    </div>
-                    {% endfor %}
-                    {% if not templates %}
-                    <div class="text-muted small py-2">No saved job openings yet.</div>
-                    {% endif %}
-                </div>
-            </div>
-        </div>
-
-        <div class="card border-0 shadow-sm">
-            <div class="card-body">
-                <div class="d-flex justify-content-between align-items-center mb-3">
-                    <h4 class="m-0">Bulk Resume Screening</h4>
-                    <div class="d-flex gap-2">
-                        <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('screening.download_csv_template') }}">CSV Template</a>
-                        <a class="btn btn-outline-dark btn-sm" href="{{ url_for('screening.dashboard') }}">Open Dashboard</a>
-                    </div>
-                </div>
+                
                 <form id="screeningForm">
-                    <div class="alert alert-info py-2 small mb-3">
-                        Bulk uploads supported up to <b>100 MB</b> per request. If your dataset is larger, upload in batches.
+                    <!-- Dropzone & Upload info -->
+                    <div id="dropZone" class="drop-zone p-5 text-center border-2 border-dashed rounded-4 mb-4">
+                        <i class="bi bi-cloud-arrow-up-fill fs-1 text-primary mb-3 d-block"></i>
+                        <h6 class="fw-bold mb-1">Drag and drop resumes here</h6>
+                        <p class="text-muted small mb-0">PDF, DOCX, CSV supported (Max 100MB total)</p>
+                        <input class="form-control d-none" type="file" name="files" id="files" multiple required>
                     </div>
-                    
+                    <div id="fileList" class="d-flex flex-wrap gap-2 mb-4"></div>
+
                     <div class="mb-4">
-                        <label class="form-label d-flex justify-content-between">
-                            <span>Upload resumes (PDF, DOCX, CSV)</span>
-                            <span class="text-muted small" id="fileCount">0 files selected</span>
-                        </label>
-                        <div id="dropZone" class="drop-zone p-4 text-center border-2 border-dashed rounded-3 mb-2">
-                            <i class="bi bi-cloud-arrow-up fs-2 text-primary mb-2 d-block"></i>
-                            <p class="mb-1">Drag and drop files here or click to browse</p>
-                            <p class="text-muted small mb-0">Supports .pdf, .docx, .csv (Max 100MB total)</p>
-                            <input class="form-control d-none" type="file" name="files" id="files" multiple required>
-                        </div>
-                        <div id="fileList" class="small text-muted"></div>
+                        <label class="form-label fw-bold small text-uppercase tracking-wider">Job Description</label>
+                        <textarea id="jdInput" class="form-control" name="jd" rows="10" placeholder="Paste full JD here..." required></textarea>
                     </div>
 
-                    <div class="mb-3">
-                        <label class="form-label">Job Description</label>
-                        <textarea class="form-control" name="jd" rows="8" placeholder="Paste full JD..." required></textarea>
-                    </div>
-
-                    <div class="card scoring-card mb-4">
-                        <div class="card-body py-3">
-                            <div class="d-flex justify-content-between align-items-center mb-3">
-                                <h6 class="m-0" data-bs-toggle="tooltip" title="Adjust weights to change how candidates are ranked">Scoring Weights</h6>
-                                <div class="dropdown">
-                                    <button class="btn btn-sm btn-light dropdown-toggle" type="button" data-bs-toggle="dropdown">
-                                        Preset Profiles
-                                    </button>
-                                    <ul class="dropdown-menu dropdown-menu-end">
-                                        <li><a class="dropdown-item preset-btn" href="#" data-keyword="40" data-semantic="40" data-experience="10" data-achievements="10">Tech-heavy Role</a></li>
-                                        <li><a class="dropdown-item preset-btn" href="#" data-keyword="20" data-semantic="30" data-experience="30" data-achievements="20">Managerial</a></li>
-                                        <li><a class="dropdown-item preset-btn" href="#" data-keyword="50" data-semantic="30" data-experience="5" data-achievements="15">Internship</a></li>
-                                        <li><a class="dropdown-item preset-btn" href="#" data-keyword="30" data-semantic="30" data-experience="20" data-achievements="20">Balanced (Default)</a></li>
-                                    </ul>
-                                </div>
-                            </div>
-                            <div class="row g-3">
-                                <div class="col-md-3">
-                                    <label class="form-label small" data-bs-toggle="tooltip" title="Score based on exact keyword matches from JD">Keyword Match</label>
-                                    <input type="range" class="form-range weight-slider" min="0" max="100" value="40" name="weight_keyword" id="weight_keyword">
-                                </div>
-                                <div class="col-md-3">
-                                    <label class="form-label small" data-bs-toggle="tooltip" title="Score based on meaning and context similarity">Semantic Fit</label>
-                                    <input type="range" class="form-range weight-slider" min="0" max="100" value="35" name="weight_semantic" id="weight_semantic">
-                                </div>
-                                <div class="col-md-3">
-                                    <label class="form-label small" data-bs-toggle="tooltip" title="Score based on years of relevant experience">Experience</label>
-                                    <input type="range" class="form-range weight-slider" min="0" max="100" value="15" name="weight_experience" id="weight_experience">
-                                </div>
-                                <div class="col-md-3">
-                                    <label class="form-label small" data-bs-toggle="tooltip" title="Score based on notable accomplishments and impact">Achievements</label>
-                                    <input type="range" class="form-range weight-slider" min="0" max="100" value="10" name="weight_achievements" id="weight_achievements">
-                                </div>
-                            </div>
-                            <div class="d-flex justify-content-between align-items-center mt-3">
-                                <div class="small text-muted" id="weightPreview">Keyword 40% | Semantic 35% | Experience 15% | Achievements 10%</div>
-                                <div id="totalWeight" class="badge bg-primary">Total: 100%</div>
+                    <!-- Scoring Card -->
+                    <div class="card scoring-card border-0 mb-4 p-3 bg-opacity-10 bg-primary">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h6 class="m-0 fw-bold" data-bs-toggle="tooltip" title="Adjust weights to prioritize specific criteria">Scoring Model Weights</h6>
+                            <div class="dropdown">
+                                <button class="btn btn-sm btn-white dropdown-toggle border shadow-sm" type="button" data-bs-toggle="dropdown">
+                                    Presets
+                                </button>
+                                <ul class="dropdown-menu dropdown-menu-end shadow-lg border-0">
+                                    <li><a class="dropdown-item preset-btn" href="#" data-keyword="40" data-semantic="40" data-experience="10" data-achievements="10">Tech-heavy Role</a></li>
+                                    <li><a class="dropdown-item preset-btn" href="#" data-keyword="20" data-semantic="30" data-experience="30" data-achievements="20">Managerial</a></li>
+                                    <li><a class="dropdown-item preset-btn" href="#" data-keyword="30" data-semantic="30" data-experience="20" data-achievements="20">Balanced (Default)</a></li>
+                                </ul>
                             </div>
                         </div>
+                        <div class="row g-3">
+                            <div class="col-md-3">
+                                <label class="form-label x-small fw-bold">Keyword Match</label>
+                                <input type="range" class="form-range weight-slider" min="0" max="100" value="40" name="weight_keyword" id="weight_keyword">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label x-small fw-bold">Semantic Fit</label>
+                                <input type="range" class="form-range weight-slider" min="0" max="100" value="35" name="weight_semantic" id="weight_semantic">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label x-small fw-bold">Experience</label>
+                                <input type="range" class="form-range weight-slider" min="0" max="100" value="15" name="weight_experience" id="weight_experience">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label x-small fw-bold">Achievements</label>
+                                <input type="range" class="form-range weight-slider" min="0" max="100" value="10" name="weight_achievements" id="weight_achievements">
+                            </div>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center mt-3 border-top pt-3">
+                            <div class="x-small text-muted" id="weightPreview">K: 40% | S: 35% | E: 15% | A: 10%</div>
+                            <div id="totalWeight" class="badge bg-primary rounded-pill">Total: 100%</div>
+                        </div>
                     </div>
-                    <div class="row g-3 align-items-end">
-                        <div class="col-md-3">
-                            <label class="form-label">Minimum Experience</label>
+
+                    <div class="row g-3 align-items-end mb-4">
+                        <div class="col-md-4">
+                            <label class="form-label fw-bold small text-uppercase tracking-wider">Min Experience</label>
                             <input type="number" class="form-control" name="min_experience" value="2" min="0" step="0.5">
                         </div>
-                        <div class="col-md-5">
-                            <div class="form-check">
+                        <div class="col-md-8">
+                            <div class="form-check form-switch mb-2">
                                 <input class="form-check-input" type="checkbox" name="replace_existing" id="replaceExisting" checked>
-                                <label class="form-check-label" for="replaceExisting">Replace existing results</label>
+                                <label class="form-check-label fw-bold small" for="replaceExisting">Clean Pool (Replace results)</label>
                             </div>
                         </div>
-                        <div class="col-md-4 text-md-end">
-                            <button class="btn btn-primary px-4" type="submit">Start Screening</button>
-                        </div>
+                    </div>
+
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-primary btn-lg shadow-sm">
+                            <i class="bi bi-cpu-fill me-2"></i> Start AI Screening
+                        </button>
                     </div>
                 </form>
-                <div class="progress mt-4 d-none" id="uploadProgressWrap" role="progressbar">
-                    <div id="uploadProgressBar" class="progress-bar progress-bar-striped progress-bar-animated" style="width:0%">0%</div>
-                </div>
                 <div id="screeningResponse" class="mt-3"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Side Panel: JD Insights -->
+    <div class="col-lg-4">
+        <div class="card glass-card border-0 shadow-sm mb-4">
+            <div class="card-body p-4">
+                <h6 class="fw-bold mb-3 d-flex align-items-center gap-2">
+                    <i class="bi bi-lightbulb text-warning"></i> Job Insights
+                </h6>
+                <div id="jdInsights" class="x-small text-muted">
+                    <div class="alert alert-light border small py-2 mb-0">
+                        Paste a Job Description to see AI-extracted insights.
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card glass-card border-0 shadow-sm mb-4">
+            <div class="card-body p-4">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h6 class="m-0 fw-bold">Saved Openings</h6>
+                    <button class="btn btn-sm btn-light border" data-bs-toggle="modal" data-bs-target="#newJDModal">+ Add</button>
+                </div>
+                <div id="jdList" class="list-group list-group-flush">
+                    {% for t in templates %}
+                    <div class="list-group-item bg-transparent px-0 py-3 d-flex justify-content-between align-items-center">
+                        <div class="overflow-hidden">
+                            <div class="fw-bold text-truncate small">{{ t.name }}</div>
+                            <div class="x-small text-muted">{{ t.created_at[:10] }}</div>
+                        </div>
+                        <button class="btn btn-sm btn-light border template-btn" data-jd="{{ t.jd_text }}">Use</button>
+                    </div>
+                    {% endfor %}
+                </div>
             </div>
         </div>
     </div>

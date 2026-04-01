@@ -14,27 +14,29 @@
     <!-- Sidebar -->
     <div class="sidebar">
         <a href="{{ url_for('screening.index') }}" class="sidebar-brand">
-            <i class="bi bi-cpu-fill"></i>
+            <div class="brand-icon">
+                <i class="bi bi-stars"></i>
+            </div>
             <span>Resume AI</span>
         </a>
         <nav class="sidebar-nav">
-             <a href="{{ url_for('screening.index') }}" class="nav-link-custom {% if request.endpoint == 'screening.index' %}active{% endif %}">
-                 <i class="bi bi-cloud-arrow-up"></i>
-                 <span>Screening</span>
-             </a>
-             <a href="{{ url_for('screening.dashboard') }}" class="nav-link-custom {% if request.endpoint == 'screening.dashboard' %}active{% endif %}">
-                 <i class="bi bi-grid-1x2"></i>
-                 <span>Dashboard</span>
-             </a>
-         </nav>
+            <a href="{{ url_for('screening.index') }}" class="nav-link-custom {% if request.endpoint == 'screening.index' %}active{% endif %}">
+                <i class="bi bi-plus-circle"></i>
+                <span>New Screening</span>
+            </a>
+            <a href="{{ url_for('screening.dashboard') }}" class="nav-link-custom {% if request.endpoint == 'screening.dashboard' %}active{% endif %}">
+                <i class="bi bi-kanban"></i>
+                <span>Talent Pool</span>
+            </a>
+        </nav>
         <div class="sidebar-footer">
             <div class="d-flex align-items-center gap-3 px-2">
-                <div class="user-avatar bg-primary text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 32px; height: 32px; font-size: 0.8rem;">
+                <div class="user-avatar bg-primary text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 40px; height: 40px; font-weight: 600;">
                     {{ session.get('username')[0]|upper if session.get('username') else 'U' }}
                 </div>
                 <div class="flex-grow-1 overflow-hidden">
                     <div class="small fw-bold text-truncate">{{ session.get('username') }}</div>
-                    <div class="x-small text-muted">Administrator</div>
+                    <div class="x-small text-muted">Recruiter Pro</div>
                 </div>
                 <a href="{{ url_for('auth.logout') }}" class="text-muted" title="Logout">
                     <i class="bi bi-box-arrow-right"></i>
@@ -43,6 +45,20 @@
         </div>
     </div>
     {% endif %}
+
+    <!-- Global AI Loader -->
+    <div id="aiLoader" class="ai-loader-overlay">
+        <div class="loader-spinner"></div>
+        <div class="loader-steps">
+            <div class="step-item" id="step1">Parsing Resume Documents...</div>
+            <div class="step-item" id="step2">Extracting Key Skills...</div>
+            <div class="step-item" id="step3">Running Semantic Match...</div>
+            <div class="step-item" id="step4">Generating AI Insights...</div>
+        </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div id="toastContainer" class="toast-container"></div>
 
     <div class="main-wrapper {% if not session.get('user_id') %}ms-0{% endif %}">
         {% if session.get('user_id') %}

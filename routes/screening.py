@@ -132,8 +132,8 @@ def screen_bulk():
                 INSERT INTO candidates (
                     name, source_file, resume_text, extracted_skills, matched_skills, missing_skills,
                     years_experience, keyword_score, semantic_score, experience_score, final_score, rank, status,
-                    ai_summary, ai_fit_score, tags
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ai_summary, ai_fit_score, tags, ai_explanation, strengths, weaknesses, rejection_reason
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     c["name"],
@@ -152,6 +152,10 @@ def screen_bulk():
                     c.get("ai_summary"),
                     c.get("ai_fit_score"),
                     serialize_list(c.get("tags")),
+                    c.get("ai_explanation"),
+                    serialize_list(c.get("strengths")),
+                    serialize_list(c.get("weaknesses")),
+                    c.get("rejection_reason"),
                 ),
             )
         conn.commit()
@@ -187,7 +191,7 @@ def dashboard():
         """
         SELECT id, name, source_file, resume_text, matched_skills, missing_skills,
                keyword_score, semantic_score, experience_score, final_score, rank, status,
-               ai_summary, ai_fit_score, tags
+               ai_summary, ai_fit_score, tags, ai_explanation, strengths, weaknesses, rejection_reason
         FROM candidates
         ORDER BY rank ASC
         """
@@ -218,7 +222,11 @@ def dashboard():
                 "status": row["status"],
                 "ai_summary": row["ai_summary"],
                 "ai_fit_score": row["ai_fit_score"],
-                "tags": tags
+                "tags": tags,
+                "ai_explanation": row["ai_explanation"],
+                "strengths": json.loads(row["strengths"] or "[]"),
+                "weaknesses": json.loads(row["weaknesses"] or "[]"),
+                "rejection_reason": row["rejection_reason"]
             }
         )
 

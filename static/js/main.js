@@ -76,58 +76,119 @@ tooltipTriggerList.map(function (tooltipTriggerEl) {
 
 renderWeightPreview();
 
+// Toast Helper
+function showToast(message, type = "success") {
+  const container = document.getElementById("toastContainer");
+  const toast = document.createElement("div");
+  toast.className = `custom-toast toast-${type}`;
+  const icon = type === "success" ? "check-circle" : "exclamation-triangle";
+  toast.innerHTML = `<i class="bi bi-${icon} text-${type}"></i><span>${message}</span>`;
+  container.appendChild(toast);
+  setTimeout(() => {
+    toast.style.opacity = "0";
+    toast.style.transform = "translateX(100%)";
+    setTimeout(() => toast.remove(), 400);
+  }, 4000);
+}
+
+// AI Loader Controller
+const loader = {
+  el: document.getElementById("aiLoader"),
+  show() {
+    this.el.classList.add("active");
+    this.runSteps();
+  },
+  hide() {
+    this.el.classList.remove("active");
+  },
+  async runSteps() {
+    const steps = ["step1", "step2", "step3", "step4"];
+    for (const stepId of steps) {
+      document.getElementById(stepId).classList.add("active");
+      await new Promise(r => setTimeout(r, 800));
+      if (stepId !== steps[steps.length - 1]) {
+        document.getElementById(stepId).classList.remove("active");
+      }
+    }
+  }
+};
+
+// JD Insights Panel Update
+const jdInput = document.getElementById("jdInput");
+const jdInsights = document.getElementById("jdInsights");
+
+if (jdInput && jdInsights) {
+  jdInput.addEventListener("input", debounce(() => {
+    const text = jdInput.value.trim();
+    if (text.length < 50) return;
+
+    // Simple Extraction Logic
+    const skills = ["Python", "React", "Flask", "AWS", "SQL", "Machine Learning", "Docker", "Java", "Go"];
+    const foundSkills = skills.filter(s => new RegExp(`\\b${s}\\b`, 'i').test(text));
+    
+    let expMatch = text.match(/(\d+)\+?\s*years?/i);
+    let experience = expMatch ? `${expMatch[1]}+ years` : "Not specified";
+
+    let category = "General";
+    if (/data|machine learning|ai|nlp/i.test(text)) category = "AI / Data Science";
+    else if (/web|frontend|backend|fullstack/i.test(text)) category = "Web Development";
+    else if (/cloud|devops|aws|azure/i.test(text)) category = "Cloud & DevOps";
+
+    jdInsights.innerHTML = `
+      <div class="mb-3">
+        <label class="d-block x-small fw-bold text-uppercase text-muted mb-1">Detected Category</label>
+        <div class="badge bg-primary-subtle text-primary border border-primary-subtle">${category}</div>
+      </div>
+      <div class="mb-3">
+        <label class="d-block x-small fw-bold text-uppercase text-muted mb-1">Target Experience</label>
+        <div class="text-main fw-bold">${experience}</div>
+      </div>
+      <div>
+        <label class="d-block x-small fw-bold text-uppercase text-muted mb-1">Key Requirements</label>
+        <div class="d-flex flex-wrap gap-1 mt-1">
+          ${foundSkills.length ? foundSkills.map(s => `<span class="badge bg-light text-muted border">${s}</span>`).join("") : '<span class="text-muted">Analyzing...</span>'}
+        </div>
+      </div>
+    `;
+  }, 1000));
+}
+
 if (form) {
-  form.addEventListener("submit", (event) => {
-    event.preventDefault();
-    const data = new FormData(form);
-    data.set("replace_existing", document.getElementById("replaceExisting").checked ? "true" : "false");
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const formData = new FormData(form);
 
-    const xhr = new XMLHttpRequest();
-    xhr.open("POST", "/api/screen", true);
-
-    progressWrap.classList.remove("d-none");
-    progressBar.style.width = "0%";
-    progressBar.textContent = "0%";
+    loader.show();
     responseDiv.innerHTML = "";
 
-    xhr.upload.onprogress = (e) => {
-      if (e.lengthComputable) {
-        const percent = Math.round((e.loaded / e.total) * 100);
-        progressBar.style.width = `${percent}%`;
-        progressBar.textContent = `${percent}%`;
+    try {
+      const response = await fetch("/api/screen", {
+        method: "POST",
+        body: formData,
+      });
+
+      const result = await response.json();
+      loader.hide();
+
+      if (result.ok) {
+        showToast(`Successfully screened ${result.candidates ? result.candidates.length : (result.processed || 0)} candidates!`);
+        setTimeout(() => window.location.href = "/dashboard", 1000);
+      } else {
+        showToast(result.error || "Screening failed", "danger");
       }
-    };
-
-    xhr.onload = () => {
-      const contentType = xhr.getResponseHeader("Content-Type") || "";
-      try {
-        const payload = contentType.includes("application/json")
-          ? JSON.parse(xhr.responseText)
-          : { ok: false, error: xhr.responseText || "Server returned non-JSON response." };
-        if (xhr.status >= 200 && xhr.status < 300 && payload.ok) {
-          const errors = (payload.errors || []).map((x) => `<li>${x}</li>`).join("");
-          responseDiv.innerHTML = `
-            <div class="alert alert-success">
-              Processed <b>${payload.processed}</b> resumes. Top match: <b>${payload.top_candidate || "-"}</b>.
-            </div>
-            ${errors ? `<div class="alert alert-warning"><b>Warnings</b><ul class="mb-0">${errors}</ul></div>` : ""}
-            <a href="/dashboard" class="btn btn-dark btn-sm">View Dashboard</a>
-          `;
-        } else {
-          responseDiv.innerHTML = `<div class="alert alert-danger">${payload.error || "Screening failed"}</div>`;
-        }
-      } catch (_error) {
-        const fallback = (xhr.responseText || "").slice(0, 350);
-        responseDiv.innerHTML = `<div class="alert alert-danger">Unexpected server response. ${fallback}</div>`;
-      }
-    };
-
-    xhr.onerror = () => {
-      responseDiv.innerHTML = `<div class="alert alert-danger">Network error during upload.</div>`;
-    };
-
-    xhr.send(data);
+    } catch (err) {
+      loader.hide();
+      showToast("A server error occurred. Please try again.", "danger");
+    }
   });
+}
+
+function debounce(func, wait) {
+  let timeout;
+  return function(...args) {
+    clearTimeout(timeout);
+    timeout = setTimeout(() => func.apply(this, args), wait);
+  };
 }
 
 document.querySelectorAll(".template-btn").forEach((btn) => {

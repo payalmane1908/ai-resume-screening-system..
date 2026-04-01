@@ -17,7 +17,7 @@ function renderCharts() {
         label: "Final Score", 
         data: top.map((c) => c.final_score), 
         backgroundColor: "#6366f1",
-        borderRadius: 4
+        borderRadius: 8
       }],
     },
     options: { 
@@ -29,7 +29,7 @@ function renderCharts() {
 
   const skills = Object.entries(skillFrequency).sort((a, b) => b[1] - a[1]).slice(0, 8);
   new Chart(document.getElementById("skillsChart"), {
-    type: "doughnut",
+    type: "pie",
     data: {
       labels: skills.map((x) => x[0]),
       datasets: [{ 
@@ -41,22 +41,31 @@ function renderCharts() {
     options: { plugins: { legend: { position: 'bottom' } } },
   });
 
-  const gapMap = {};
-  candidates.forEach((c) => (c.missing_skills || []).forEach((s) => (gapMap[s] = (gapMap[s] || 0) + 1)));
-  const gaps = Object.entries(gapMap).sort((a, b) => b[1] - a[1]).slice(0, 6);
+  // Score Distribution Chart
+  const scoreBuckets = { "0-40": 0, "41-60": 0, "61-80": 0, "81-100": 0 };
+  candidates.forEach(c => {
+    const s = c.final_score;
+    if (s <= 40) scoreBuckets["0-40"]++;
+    else if (s <= 60) scoreBuckets["41-60"]++;
+    else if (s <= 80) scoreBuckets["61-80"]++;
+    else scoreBuckets["81-100"]++;
+  });
+  
   new Chart(document.getElementById("gapChart"), {
-    type: "polarArea",
+    type: "bar",
     data: { 
-      labels: gaps.map((x) => x[0]), 
+      labels: Object.keys(scoreBuckets), 
       datasets: [{ 
-        data: gaps.map((x) => x[1]),
-        backgroundColor: 'rgba(99, 102, 241, 0.5)'
+        label: "Candidate Count",
+        data: Object.values(scoreBuckets),
+        backgroundColor: 'rgba(99, 102, 241, 0.6)',
+        borderRadius: 6
       }] 
     },
-    options: { plugins: { legend: { position: 'bottom' } } },
+    options: { plugins: { legend: { display: false } } },
   });
 
-  // New Charts: Trends over time (Batch)
+  // Trends over time (Batch)
   const trends = candidates.slice(-10).map((c, i) => ({ x: i, y: c.final_score }));
   new Chart(document.getElementById("trendsChart"), {
     type: "line",
@@ -91,7 +100,7 @@ function renderCharts() {
     data: {
       labels: Object.keys(expRanges),
       datasets: [{
-        label: "Candidates",
+        label: "Experience Breakdown",
         data: Object.values(expRanges),
         backgroundColor: "rgba(245, 158, 11, 0.2)",
         borderColor: "#f59e0b",
@@ -157,30 +166,36 @@ function wireActions() {
 
   compareBtn.addEventListener("click", () => {
     const selectedIds = Array.from(checkboxes).filter(cb => cb.checked).map(cb => cb.dataset.id);
-    const row = document.getElementById("comparisonRow");
-    row.innerHTML = "";
-    
-    selectedIds.forEach(id => {
-      const c = candidatesById[id];
-      if (!c) return;
-      const col = document.createElement("div");
-      col.className = "col-md-4";
-      col.innerHTML = `
-        <div class="card h-100 border-0 shadow-sm">
-          <div class="card-body">
-            <h5 class="card-title text-primary">${c.name}</h5>
-            <div class="mb-3"><span class="badge score-badge ${c.final_score >= 80 ? 'score-high' : (c.final_score >= 60 ? 'score-mid' : 'score-low')}">${c.final_score}% Overall</span></div>
-            <div class="small mb-2"><b>Matched:</b> ${c.matched_skills.join(", ") || "-"}</div>
-            <div class="small mb-2 text-danger"><b>Missing:</b> ${c.missing_skills.join(", ") || "-"}</div>
-            <hr>
-            <div class="small mb-1"><b>Keywords:</b> ${c.keyword_score}%</div>
-            <div class="small mb-1"><b>Semantic:</b> ${c.semantic_score}%</div>
-            <div class="small mb-1"><b>Experience:</b> ${c.experience_score}%</div>
-          </div>
-        </div>
-      `;
-      row.appendChild(col);
-    });
+    const tableDiv = document.getElementById("comparisonTable");
+    const candidates = selectedIds.map(id => candidatesById[id]);
+
+    let html = `<table class="table table-bordered align-middle">
+      <thead>
+        <tr>
+          <th class="bg-light">Criteria</th>
+          ${candidates.map(c => `<th class="text-center bg-light">${c.name}</th>`).join("")}
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><b>Final Score</b></td>
+          ${candidates.map(c => `<td class="text-center"><span class="badge score-badge ${c.final_score >= 80 ? 'score-high' : 'score-mid'}">${c.final_score}%</span></td>`).join("")}
+        </tr>
+        <tr>
+          <td><b>Key Strengths</b></td>
+          ${candidates.map(c => `<td><ul class="x-small mb-0">${(c.strengths || []).map(s => `<li>${s}</li>`).join("")}</ul></td>`).join("")}
+        </tr>
+        <tr>
+          <td><b>Missing Skills</b></td>
+          ${candidates.map(c => `<td><ul class="x-small mb-0 text-danger">${(c.missing_skills || []).map(s => `<li>${s}</li>`).join("")}</ul></td>`).join("")}
+        </tr>
+        <tr>
+          <td><b>Experience</b></td>
+          ${candidates.map(c => `<td class="text-center">${c.years_experience} years</td>`).join("")}
+        </tr>
+      </tbody>
+    </table>`;
+    tableDiv.innerHTML = html;
   });
 
   // AI Assistant
@@ -240,9 +255,29 @@ function wireActions() {
       const candidate = candidatesById[String(btn.dataset.id)];
       if (!candidate) return;
       document.getElementById("resumeModalTitle").textContent = candidate.name || "Resume";
-      document.getElementById("matchedSkills").textContent = (candidate.matched_skills || []).join(", ") || "-";
-      document.getElementById("missingSkills").textContent = (candidate.missing_skills || []).join(", ") || "-";
-      document.getElementById("aiSummary").textContent = candidate.ai_summary || "No summary available.";
+      
+      const matchedEl = document.getElementById("matchedSkills");
+      matchedEl.innerHTML = (candidate.matched_skills || []).map(s => `<span class="badge bg-success-subtle text-success border border-success-subtle x-small">${s}</span>`).join("");
+      
+      const missingEl = document.getElementById("missingSkills");
+      missingEl.innerHTML = (candidate.missing_skills || []).map(s => `<span class="badge bg-danger-subtle text-danger border border-danger-subtle x-small">${s}</span>`).join("");
+      
+      document.getElementById("aiExplanation").textContent = candidate.ai_explanation || "No explanation available.";
+      
+      const strengthsEl = document.getElementById("aiStrengths");
+      strengthsEl.innerHTML = (candidate.strengths || []).map(s => `<li>${s}</li>`).join("");
+      
+      const weaknessesEl = document.getElementById("aiWeaknesses");
+      weaknessesEl.innerHTML = (candidate.weaknesses || []).map(s => `<li>${s}</li>`).join("");
+      
+      const rejectionAlert = document.getElementById("rejectionAlert");
+      const rejectionText = document.getElementById("rejectionText");
+      if (candidate.rejection_reason) {
+        rejectionAlert.classList.remove("d-none");
+        rejectionText.textContent = candidate.rejection_reason;
+      } else {
+        rejectionAlert.classList.add("d-none");
+      }
       
       // Simple frontend highlighting
       let resumeText = candidate.resume_text || "";
