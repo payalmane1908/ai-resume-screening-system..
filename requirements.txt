@@ -1,7 +1,9 @@
-Flask
+flask
 pandas
+scikit-learn
+nltk
 PyPDF2
 python-docx
-sentence-transformers
 openpyxl
 reportlab
+gunicorn

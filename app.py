@@ -10,11 +10,14 @@ def create_app():
     app = Flask(__name__)
     app.config.from_object(Config)
 
+    # Initialize database
     init_db()
 
+    # Register blueprints
     app.register_blueprint(auth_bp)
     app.register_blueprint(screening_bp)
 
+    # Handle large file uploads
     @app.errorhandler(413)
     def request_entity_too_large(_error):
         if request.path.startswith("/api/"):
@@ -37,4 +40,4 @@ app = create_app()
 
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(host="0.0.0.0", port=5000, debug=True)
