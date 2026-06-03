@@ -151,18 +151,18 @@ HireMind AI is built following a clean, decoupled **Layered SaaS Architecture** 
 
 ```mermaid
 graph TD
-    subgraph Presentation Layer (Client)
+    subgraph PL ["Presentation Layer (Client)"]
         UI[Recruiter Dashboard & Templates] -->|HTTP / JSON Requests| API[Flask Web App Router]
         JS[theme.js / ai-advisor.js / dashboard.js] -->|APIs / SSE / Form Multipart| API
     end
 
-    subgraph Controller & Routing Layer (Backend)
+    subgraph CR ["Controller & Routing Layer (Backend)"]
         API -->|Route Blueprints| AUTH[auth.py Blueprint]
         API -->|Route Blueprints| SCR[screening.py Blueprint]
         API -->|Route Blueprints| ANL[analytics.py Blueprint]
     end
 
-    subgraph Services & Processing Layer (Business Logic)
+    subgraph SP ["Services & Processing Layer (Business Logic)"]
         SCR -->|Invokes| RP[resume_processor.py Engine]
         RP -->|Concurrently Extracts| PARSER[parser.py PDF/DOCX/TXT Parser]
         RP -->|Extracts Skills & Synonyms| SE[skill_extractor.py synonym-matcher]
@@ -171,7 +171,7 @@ graph TD
         SCR -->|Funnels Alerts| NOTIFY[notifications.py email/slack alerts]
     end
 
-    subgraph Storage & Relational Database Layer
+    subgraph DB_LAYER ["Storage & Relational Database Layer"]
         AUTH -->|Verifies Users| DB[database.py / SQLite db]
         SCR -->|Saves Candidates & Presets| DB
         ANL -->|Reads Logs & Fit Metrics| DB
@@ -263,7 +263,7 @@ docker-compose up --build
 ## 📸 Interface Preview
 
 <p align="center">
-  <img src="screenshots/upload page.png" alt="HireMind AI Screening" width="400">
+  <img src="screenshots/upload_page.png" alt="HireMind AI Screening" width="400">
   <img src="screenshots/dashboard.png" alt="HireMind AI Recruiter Board" width="400">
 </p>
 
