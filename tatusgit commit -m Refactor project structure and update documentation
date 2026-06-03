@@ -1,0 +1,61 @@
+warning: in the working copy of 'README.md', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'config.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'docker-compose.yml', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'requirements.txt', LF will be replaced by CRLF the next time Git touches it
+ README.md                                          | 335 [32m++++++++++++[m[31m----[m
+ app.py                                             |  10 [32m+[m[31m-[m
+ config.py                                          |  35 [32m+[m[31m-[m
+ database/db.py                                     |   5 [31m-[m
+ database/models.py                                 |   5 [31m-[m
+ docker-compose.yml                                 |  14 [32m+[m[31m-[m
+ requirements.txt                                   |  21 [32m+[m[31m-[m
+ routes/__pycache__/auth.cpython-310.pyc            | Bin [31m2221[m -> [32m0[m bytes
+ routes/__pycache__/auth.cpython-313.pyc            | Bin [31m3912[m -> [32m0[m bytes
+ routes/__pycache__/screening.cpython-310.pyc       | Bin [31m10351[m -> [32m0[m bytes
+ routes/__pycache__/screening.cpython-313.pyc       | Bin [31m17653[m -> [32m0[m bytes
+ routes/auth.py                                     |  70 [31m----[m
+ routes/auth_routes.py                              |   5 [31m-[m
+ routes/main_routes.py                              |   5 [31m-[m
+ routes/screening.py                                | 378 [31m------------------[m
+ screenshots/LOGIN page.png                         | Bin [31m73017[m -> [32m685319[m bytes
+ screenshots/dashboard (2).png                      | Bin [31m229911[m -> [32m0[m bytes
+ screenshots/dashboard.png                          | Bin [31m195425[m -> [32m0[m bytes
+ screenshots/talent tool.png                        | Bin [31m49612[m -> [32m0[m bytes
+ screenshots/upload page.png                        | Bin [31m83211[m -> [32m0[m bytes
+ services/__pycache__/analytics.cpython-313.pyc     | Bin [31m1034[m -> [32m0[m bytes
+ services/__pycache__/database.cpython-310.pyc      | Bin [31m4125[m -> [32m0[m bytes
+ services/__pycache__/database.cpython-313.pyc      | Bin [31m5261[m -> [32m0[m bytes
+ services/__pycache__/notifications.cpython-310.pyc | Bin [31m1800[m -> [32m0[m bytes
+ services/__pycache__/notifications.cpython-313.pyc | Bin [31m2690[m -> [32m0[m bytes
+ services/__pycache__/parser.cpython-310.pyc        | Bin [31m1017[m -> [32m0[m bytes
+ services/__pycache__/parser.cpython-313.pyc        | Bin [31m1505[m -> [32m0[m bytes
+ .../__pycache__/profile_extractor.cpython-310.pyc  | Bin [31m1601[m -> [32m0[m bytes
+ .../__pycache__/profile_extractor.cpython-313.pyc  | Bin [31m2274[m -> [32m0[m bytes
+ .../__pycache__/resume_processor.cpython-310.pyc   | Bin [31m4952[m -> [32m0[m bytes
+ .../__pycache__/resume_processor.cpython-313.pyc   | Bin [31m9308[m -> [32m0[m bytes
+ services/__pycache__/scorer.cpython-310.pyc        | Bin [31m2709[m -> [32m0[m bytes
+ services/__pycache__/scorer.cpython-313.pyc        | Bin [31m3939[m -> [32m0[m bytes
+ .../__pycache__/semantic_matcher.cpython-310.pyc   | Bin [31m813[m -> [32m0[m bytes
+ .../__pycache__/semantic_matcher.cpython-313.pyc   | Bin [31m1102[m -> [32m0[m bytes
+ .../__pycache__/skill_extractor.cpython-310.pyc    | Bin [31m1795[m -> [32m0[m bytes
+ .../__pycache__/skill_extractor.cpython-313.pyc    | Bin [31m2652[m -> [32m0[m bytes
+ services/analytics.py                              |  19 [31m-[m
+ services/database.py                               | 147 [31m-------[m
+ services/notifications.py                          |  60 [31m---[m
+ services/parser.py                                 |  29 [31m--[m
+ services/profile_extractor.py                      |  43 [31m---[m
+ services/resume_processor.py                       | 190 [31m---------[m
+ services/scorer.py                                 |  88 [31m-----[m
+ services/semantic_matcher.py                       |  19 [31m-[m
+ services/skill_extractor.py                        |  50 [31m---[m
+ static/css/app.css                                 | 423 [31m---------------------[m
+ static/js/dashboard.js                             | 304 [31m---------------[m
+ static/js/main.js                                  | 200 [31m----------[m
+ static/js/theme.js                                 |  20 [31m-[m
+ templates/base.html                                | 105 [31m-----[m
+ templates/dashboard.html                           | 260 [31m-------------[m
+ templates/index.html                               | 159 [31m--------[m
+ templates/login.html                               |  35 [31m--[m
+ utils/constants.py                                 |   5 [31m-[m
+ utils/helpers.py                                   |   7 [31m-[m
+ 56 files changed, 306 insertions(+), 2740 deletions(-)

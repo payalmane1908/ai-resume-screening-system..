@@ -1,0 +1,1 @@
+# HireMind AI App Package

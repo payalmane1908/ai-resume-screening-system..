@@ -1,13 +1,14 @@
 from flask import Flask, jsonify, redirect, request, url_for
 
 from config import Config
-from routes.auth import auth_bp
-from routes.screening import screening_bp
-from services.database import init_db
+from app.routes.auth import auth_bp
+from app.routes.screening import screening_bp
+from app.routes.analytics import analytics_bp
+from app.services.database import init_db
 
 
 def create_app():
-    app = Flask(__name__)
+    app = Flask(__name__, template_folder="app/templates", static_folder="app/static")
     app.config.from_object(Config)
 
     # Initialize database
@@ -16,6 +17,7 @@ def create_app():
     # Register blueprints
     app.register_blueprint(auth_bp)
     app.register_blueprint(screening_bp)
+    app.register_blueprint(analytics_bp)
 
     # Handle large file uploads
     @app.errorhandler(413)

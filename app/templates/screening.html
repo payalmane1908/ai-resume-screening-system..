@@ -1,0 +1,216 @@
+{% extends 'base.html' %}
+{% block title %}Upload & Screen | HireMind AI{% endblock %}
+{% block content %}
+
+<!-- Hero Section -->
+<div class="hero-wrapper animate-fadeIn">
+    <div class="hero-content">
+        <h3 class="m-0"><i class="bi bi-stars text-primary me-2"></i>AI Resume Screening Platform</h3>
+        <p class="mt-1">Analyze and rank candidates using AI-powered semantic matching, keyword tracking, and experience metrics.</p>
+    </div>
+    <div class="d-flex gap-2">
+        <button class="btn btn-primary" onclick="document.getElementById('files').click();">
+            <i class="bi bi-cloud-arrow-up me-2"></i>Upload Resumes
+        </button>
+        <button class="btn btn-outline-primary" onclick="document.getElementById('jdInput').focus();">
+            <i class="bi bi-file-earmark-plus me-2"></i>Create Screening
+        </button>
+    </div>
+</div>
+
+<div class="row g-4" id="settings">
+    <!-- Main Form Workspace -->
+    <div class="col-lg-8">
+        <div class="card border-0 mb-4">
+            <div class="card-body p-4">
+                <div class="d-flex align-items-center justify-content-between mb-4">
+                    <h5 class="m-0 fw-bold"><i class="bi bi-folder-symlink text-primary me-2"></i>Bulk Resume Screening</h5>
+                    <a href="{{ url_for('screening.download_csv_template') }}" class="btn btn-sm btn-outline-secondary" title="Download sample CSV format">
+                        <i class="bi bi-download me-1"></i>CSV Template
+                    </a>
+                </div>
+
+                <form id="screeningForm">
+                    <!-- Dropzone -->
+                    <div id="dropZone" class="drop-zone p-5 text-center mb-4">
+                        <i class="bi bi-cloud-arrow-up upload-icon d-block"></i>
+                        <h6 class="fw-bold mb-1">Drag and drop resumes here</h6>
+                        <p class="text-muted small mb-3">or click to browse files from your computer</p>
+                        <div class="d-flex justify-content-center gap-2 mb-2">
+                            <span class="badge bg-opacity-10 bg-primary text-primary border x-small">PDF</span>
+                            <span class="badge bg-opacity-10 bg-primary text-primary border x-small">DOCX</span>
+                            <span class="badge bg-opacity-10 bg-primary text-primary border x-small">CSV</span>
+                            <span class="badge bg-opacity-10 bg-primary text-primary border x-small">TXT</span>
+                        </div>
+                        <div class="x-small text-muted">Supports up to 100 files, max 100MB total</div>
+                        <input class="form-control d-none" type="file" name="files" id="files" multiple required accept=".pdf,.docx,.csv,.txt">
+                    </div>
+                    
+                    <!-- Uploaded files display -->
+                    <div id="fileList" class="d-flex flex-wrap gap-2 mb-4"></div>
+
+                    <!-- Job Description Editor -->
+                    <div class="mb-4">
+                        <label class="form-label fw-bold small text-uppercase tracking-wider" for="jdInput">
+                            <i class="bi bi-textarea-resize me-1"></i>Job Description
+                        </label>
+                        <textarea id="jdInput" class="form-control" name="jd" rows="9" placeholder="Paste the target job description here. Our AI will automatically extract skills, qualifications, and requirements to score applicants..." required></textarea>
+                    </div>
+
+                    <!-- Scoring Model weights configurations -->
+                    <div class="scoring-card p-4 mb-4">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h6 class="m-0 fw-bold" data-bs-toggle="tooltip" title="Customize weights to balance candidate evaluations">
+                                <i class="bi bi-sliders me-2"></i>Screening Weights Configuration
+                            </h6>
+                            <div class="dropdown">
+                                <button class="btn btn-sm btn-outline-primary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                                    Presets
+                                </button>
+                                <ul class="dropdown-menu dropdown-menu-end shadow-lg border-0" style="background: var(--bg-soft); border: 1px solid var(--border) !important;">
+                                    <li><a class="dropdown-item preset-btn" href="#" data-keyword="40" data-semantic="40" data-experience="10" data-achievements="10">🖥️ Tech-heavy Role</a></li>
+                                    <li><a class="dropdown-item preset-btn" href="#" data-keyword="20" data-semantic="30" data-experience="30" data-achievements="20">👔 Managerial</a></li>
+                                    <li><a class="dropdown-item preset-btn" href="#" data-keyword="30" data-semantic="30" data-experience="20" data-achievements="20">⚖️ Balanced (Default)</a></li>
+                                    <li><a class="dropdown-item preset-btn" href="#" data-keyword="50" data-semantic="30" data-experience="5" data-achievements="15">🎓 Internship</a></li>
+                                </ul>
+                            </div>
+                        </div>
+                        <div class="row g-3">
+                            <div class="col-md-3 col-6">
+                                <label class="form-label x-small fw-bold text-uppercase text-muted">Skills Match</label>
+                                <input type="range" class="form-range weight-slider" min="0" max="100" value="40" name="weight_keyword" id="weight_keyword">
+                                <div class="small fw-bold mt-1 text-center" id="val_keyword" style="color: var(--accent);">40%</div>
+                            </div>
+                            <div class="col-md-3 col-6">
+                                <label class="form-label x-small fw-bold text-uppercase text-muted">Experience</label>
+                                <input type="range" class="form-range weight-slider" min="0" max="100" value="35" name="weight_semantic" id="weight_semantic">
+                                <div class="small fw-bold mt-1 text-center" id="val_semantic" style="color: var(--accent);">35%</div>
+                            </div>
+                            <div class="col-md-3 col-6">
+                                <label class="form-label x-small fw-bold text-uppercase text-muted">Education</label>
+                                <input type="range" class="form-range weight-slider" min="0" max="100" value="15" name="weight_experience" id="weight_experience">
+                                <div class="small fw-bold mt-1 text-center" id="val_experience" style="color: var(--accent);">15%</div>
+                            </div>
+                            <div class="col-md-3 col-6">
+                                <label class="form-label x-small fw-bold text-uppercase text-muted">Projects</label>
+                                <input type="range" class="form-range weight-slider" min="0" max="100" value="10" name="weight_achievements" id="weight_achievements">
+                                <div class="small fw-bold mt-1 text-center" id="val_achievements" style="color: var(--accent);">10%</div>
+                            </div>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center mt-3 pt-3" style="border-top: 1px solid var(--border);">
+                            <div class="x-small text-muted" id="weightPreview">K: 40% | S: 35% | E: 15% | A: 10%</div>
+                            <div id="totalWeight" class="badge bg-success rounded-pill p-2">Total: 100%</div>
+                        </div>
+                    </div>
+
+                    <!-- Additional Options -->
+                    <div class="row g-3 align-items-end mb-4">
+                        <div class="col-md-4">
+                            <label class="form-label fw-bold small text-uppercase tracking-wider" for="minExpInput">Target Experience (Years)</label>
+                            <input type="number" class="form-control" name="min_experience" id="minExpInput" value="2" min="0" step="0.5">
+                        </div>
+                        <div class="col-md-8">
+                            <div class="form-check form-switch mb-2">
+                                <input class="form-check-input" type="checkbox" name="replace_existing" id="replaceExisting" checked>
+                                <label class="form-check-label small fw-bold" for="replaceExisting">
+                                    Clean Pool <span class="text-muted fw-normal">(Replace existing candidates list)</span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Submit action -->
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-primary btn-lg shadow-sm py-3" id="submitBtn">
+                            <i class="bi bi-cpu-fill me-2"></i>Analyze & Screen Resumes
+                        </button>
+                    </div>
+                </form>
+                <div id="screeningResponse" class="mt-3"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Side Panel -->
+    <div class="col-lg-4">
+        <!-- JD Insights Panel -->
+        <div class="card border-0 mb-4">
+            <div class="card-body p-4">
+                <h6 class="fw-bold mb-3 d-flex align-items-center gap-2">
+                    <i class="bi bi-lightbulb text-warning"></i> AI JD Insights
+                </h6>
+                <div id="jdInsights" class="x-small text-muted">
+                    <div class="text-center py-4 cursor-pointer" onclick="document.getElementById('jdInput').focus()">
+                        <i class="bi bi-clipboard-plus fs-2 d-block mb-2 text-primary"></i>
+                        <span>Paste a Job Description to extract skills, targets, and category predictions.</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Saved Openings -->
+        <div class="card border-0 mb-4">
+            <div class="card-body p-4">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h6 class="m-0 fw-bold"><i class="bi bi-bookmark-star me-2"></i>Job Templates</h6>
+                    <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#newJDModal">
+                        <i class="bi bi-plus"></i> New
+                    </button>
+                </div>
+                <div id="jdList" class="list-group list-group-flush">
+                    {% if templates %}
+                    {% for t in templates %}
+                    <div class="list-group-item bg-transparent px-0 py-3 d-flex justify-content-between align-items-center border-bottom" style="border-color: var(--border) !important;">
+                        <div class="overflow-hidden me-2">
+                            <div class="fw-bold text-truncate small text-main">{{ t.name }}</div>
+                            <div class="x-small text-muted text-truncate">{{ t.jd_text[:60] }}...</div>
+                        </div>
+                        <button class="btn btn-sm btn-primary template-btn flex-shrink-0" data-jd="{{ t.jd_text }}">Use</button>
+                    </div>
+                    {% endfor %}
+                    {% else %}
+                    <div class="text-center py-4 text-muted x-small">
+                        <i class="bi bi-inbox d-block mb-2 fs-4"></i>
+                        No template openings saved yet
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- New JD Modal -->
+<div class="modal fade" id="newJDModal" tabindex="-1" aria-labelledby="newJDModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="newJDModalLabel"><i class="bi bi-bookmark-plus text-primary me-2"></i>New Job Template</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form action="{{ url_for('screening.create_template') }}" method="POST">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold small text-uppercase text-muted" for="templateName">Role Title</label>
+                        <input type="text" name="template_name" id="templateName" class="form-control" placeholder="e.g. Senior Python Developer" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold small text-uppercase text-muted" for="templateJD">Job Description</label>
+                        <textarea name="template_jd" id="templateJD" class="form-control" rows="6" placeholder="Paste the complete role description..." required></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold small text-uppercase text-muted" for="templateSkills">Primary Skills <span class="text-muted fw-normal">(Comma-separated)</span></label>
+                        <input type="text" name="template_skills" id="templateSkills" class="form-control" placeholder="Python, React, AWS, FastAPI">
+                    </div>
+                    <div class="text-end pt-2">
+                        <button type="submit" class="btn btn-primary">Save Job Template</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/main.js') }}"></script>
+{% endblock %}

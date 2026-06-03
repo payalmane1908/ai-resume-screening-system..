@@ -1,0 +1,811 @@
+{% extends 'base.html' %}
+{% block title %}Dashboard | HireMind AI{% endblock %}
+{% block content %}
+
+<!-- Dashboard Header -->
+<div class="d-flex justify-content-between align-items-center mb-4 animate-fadeIn">
+    <div>
+        <h4 class="m-0 fw-bold"><i class="bi bi-grid-1x2 text-primary me-2"></i>Workspace Dashboard</h4>
+        <p class="text-muted small mb-0">Evaluate candidates, review semantic matches, and monitor pool insights</p>
+    </div>
+    <div class="d-flex gap-2">
+        <button class="btn btn-primary" id="compareBtn" disabled>
+            <i class="bi bi-arrows-angle-expand me-1"></i>Compare Candidates
+        </button>
+        <a class="btn btn-outline-primary" href="{{ url_for('screening.export_excel') }}" title="Export as Excel Sheet">
+            <i class="bi bi-file-earmark-spreadsheet me-1"></i>Excel
+        </a>
+        <a class="btn btn-outline-primary" href="{{ url_for('screening.export_pdf') }}" title="Export as PDF Document">
+            <i class="bi bi-file-earmark-pdf me-1"></i>PDF Report
+        </a>
+    </div>
+</div>
+
+<!-- Empty State -->
+{% if not candidates %}
+<div class="card border-0 animate-fadeIn">
+    <div class="card-body empty-state">
+        <div class="empty-icon"><i class="bi bi-people-fill text-primary"></i></div>
+        <h5>No resumes uploaded yet</h5>
+        <p>Start a new bulk screening by pasting a job description and uploading candidate resumes to generate scores and analytics.</p>
+        <a class="btn btn-primary btn-lg" href="{{ url_for('screening.index') }}">
+            <i class="bi bi-plus-circle-fill me-2"></i>Begin AI Screening
+        </a>
+    </div>
+</div>
+{% endif %}
+
+{% if candidates %}
+<!-- Tab: Dashboard Overview -->
+<div id="tab-dashboard" class="tab-pane-custom d-none">
+    <!-- KPI Metrics Cards -->
+    <div class="row row-cols-2 row-cols-lg-4 g-3 mb-4 animate-fadeIn">
+        <div class="col">
+            <div class="card stat-card">
+                <div class="card-body">
+                    <div class="stat-label">Total Resumes</div>
+                    <div class="stat-value" id="counter-total">{{ candidates|length }}</div>
+                    <div class="x-small text-muted">Uploaded & parsed files</div>
+                </div>
+            </div>
+        </div>
+        <div class="col">
+            <div class="card stat-card">
+                <div class="card-body">
+                    <div class="stat-label">Candidates Screened</div>
+                    {% set screened = candidates|selectattr('status', 'ne', 'Pending')|list|length %}
+                    <div class="stat-value" id="counter-screened">{{ screened if screened else candidates|length }}</div>
+                    <div class="x-small text-muted">Processed with AI model</div>
+                </div>
+            </div>
+        </div>
+        <div class="col">
+            <div class="card stat-card">
+                <div class="card-body">
+                    <div class="stat-label">Shortlisted</div>
+                    {% set shortlisted = candidates|selectattr('status', 'equalto', 'Selected')|list|length %}
+                    <div class="stat-value text-success" id="counter-shortlisted">{{ shortlisted }}</div>
+                    <div class="x-small text-muted">Marked as shortlisted</div>
+                </div>
+            </div>
+        </div>
+        <div class="col">
+            <div class="card stat-card">
+                <div class="card-body">
+                    <div class="stat-label">Rejected</div>
+                    {% set rejected = candidates|selectattr('status', 'equalto', 'Rejected')|list|length %}
+                    <div class="stat-value text-danger" id="counter-rejected">{{ rejected }}</div>
+                    <div class="x-small text-muted">Marked as rejected</div>
+                </div>
+            </div>
+        </div>
+        <div class="col">
+            <div class="card stat-card">
+                <div class="card-body">
+                    <div class="stat-label">Avg Match Score</div>
+                    {% set avg_score = (candidates|map(attribute='final_score')|sum / (candidates|length))|round(1) %}
+                    <div class="stat-value" id="counter-avg">{{ avg_score }}%</div>
+                    <div class="x-small text-muted">Core matching average</div>
+                </div>
+            </div>
+        </div>
+        <div class="col">
+            <div class="card stat-card">
+                <div class="card-body">
+                    <div class="stat-label">Top Candidate</div>
+                    <div class="stat-value text-truncate" style="font-size: 1.25rem; line-height: 2.2rem; color: var(--accent);" title="{{ candidates[0].name if candidates else 'N/A' }}">
+                        {{ candidates[0].name if candidates else 'N/A' }}
+                    </div>
+                    <div class="x-small text-muted">Rank #1 overall fit</div>
+                </div>
+            </div>
+        </div>
+        <div class="col">
+            <div class="card stat-card">
+                <div class="card-body">
+                    <div class="stat-label">Avg ATS Score</div>
+                    {% set avg_ats = (candidates|map(attribute='ats_score')|sum / (candidates|length))|round(1) %}
+                    <div class="stat-value" id="counter-ats">{{ avg_ats }}%</div>
+                    <div class="x-small text-muted">ATS formatting average</div>
+                </div>
+            </div>
+        </div>
+        <div class="col">
+            <div class="card stat-card">
+                <div class="card-body">
+                    <div class="stat-label">Interview Ready</div>
+                    {% set ready_count = candidates|selectattr('final_score', 'ge', 75)|list|length %}
+                    <div class="stat-value text-success" id="counter-ready">{{ ready_count }}</div>
+                    <div class="x-small text-muted">Match score &ge; 75%</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Overview Layout -->
+    <div class="row g-4 mb-4 animate-fadeIn">
+        <!-- Top Candidate Hero Card -->
+        <div class="col-lg-6">
+            <div class="card border-0 h-100 top-candidate-hero-card">
+                <div class="card-body p-4 d-flex flex-column justify-content-between">
+                    <div>
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <span class="top-candidate-badge"><i class="bi bi-stars"></i> TOP MATCH</span>
+                            <span class="fs-4 fw-bold text-success">{{ candidates[0].final_score }}% Match</span>
+                        </div>
+                        <h4 class="fw-bold text-main mb-1">{{ candidates[0].name }}</h4>
+                        <p class="text-muted small mb-3"><i class="bi bi-briefcase me-1"></i>{{ candidates[0].years_experience }} Years of Experience</p>
+                        
+                        <div class="mb-3">
+                            <label class="x-small text-muted text-uppercase fw-bold mb-1">Key Skills</label>
+                            <div class="d-flex flex-wrap gap-1">
+                                {% for skill in candidates[0].matched_skills[:5] %}
+                                <span class="badge bg-opacity-10 bg-primary text-primary border x-small">{{ skill }}</span>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        
+                        <div>
+                            <label class="x-small text-muted text-uppercase fw-bold mb-1">AI Summary</label>
+                            <p class="text-secondary x-small mb-0" style="line-height: 1.5;">{{ candidates[0].ai_summary }}</p>
+                        </div>
+                    </div>
+                    <div class="mt-4">
+                        <button class="btn btn-primary w-100 preview-btn" data-id="{{ candidates[0].id }}">
+                            <i class="bi bi-eye-fill me-2"></i>Quick View Details
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- Screening Activity Feed -->
+        <div class="col-lg-6">
+            <div class="card border-0 h-100">
+                <div class="card-body p-4">
+                    <h6 class="fw-bold mb-3"><i class="bi bi-activity text-primary me-2"></i>Screening Activity Feed</h6>
+                    <div class="activity-timeline" style="max-height: 280px; overflow-y: auto;">
+                        {% for log in activity_logs %}
+                        <div class="activity-item d-flex gap-3 mb-3 pb-3 border-bottom" style="border-color: var(--border) !important;">
+                            <div class="activity-icon-container">
+                                <div class="activity-icon bg-primary bg-opacity-10 text-primary rounded-circle d-flex align-items-center justify-content-center" style="width: 32px; height: 32px;">
+                                    {% if log.action == 'LOGIN' %}
+                                    <i class="bi bi-box-arrow-in-right"></i>
+                                    {% elif log.action == 'BULK_SCREEN' %}
+                                    <i class="bi bi-file-earmark-arrow-up"></i>
+                                    {% elif log.action == 'VIEW_UPLOAD' %}
+                                    <i class="bi bi-eye"></i>
+                                    {% else %}
+                                    <i class="bi bi-info-circle"></i>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="activity-content">
+                                <div class="x-small fw-bold text-main" style="line-height: 1.4;">{{ log.details }}</div>
+                                <div class="x-small text-muted mt-0.5" style="font-size: 0.65rem;">{{ log.created_at }}</div>
+                            </div>
+                        </div>
+                        {% else %}
+                        <div class="text-center py-4 text-muted x-small">No recent activity logs.</div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Leaderboard & Chart Row -->
+    <div class="row g-4 animate-fadeIn">
+        <!-- Top Candidates List -->
+        <div class="col-lg-6">
+            <div class="card border-0 h-100">
+                <div class="card-body p-4">
+                    <h6 class="fw-bold mb-3"><i class="bi bi-award text-warning me-2"></i>Top Candidates Summary</h6>
+                    <div class="list-group list-group-flush">
+                        {% for c in candidates[:4] %}
+                        <div class="list-group-item bg-transparent px-0 py-3 d-flex justify-content-between align-items-center border-bottom" style="border-color: var(--border) !important;">
+                            <div>
+                                <div class="fw-bold text-main">{{ c.name }}</div>
+                                <div class="x-small text-muted"><i class="bi bi-file-earmark-text me-1"></i>Score: {{ c.final_score }}% | Rank #{{ c.rank }}</div>
+                            </div>
+                            <span class="badge {% if c.final_score >= 80 %}score-high{% else %}score-mid{% endif %}">{{ c.final_score }}%</span>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- Chart view -->
+        <div class="col-lg-6">
+            <div class="card border-0 h-100">
+                <div class="card-body p-4">
+                    <h6 class="fw-bold mb-3"><i class="bi bi-trophy text-primary me-2"></i>Leaderboard Chart</h6>
+                    <canvas id="topScoresChart" height="200"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Tab: Candidates List -->
+<div id="tab-candidates" class="tab-pane-custom d-none">
+    <div class="card border-0 animate-fadeIn">
+        <div class="card-body p-4">
+            <!-- Search & Filters -->
+            <div class="row g-3 mb-4">
+                <div class="col-md-5">
+                    <div class="input-group input-group-sm">
+                        <span class="input-group-text bg-transparent border-end-0"><i class="bi bi-search text-muted"></i></span>
+                        <input id="filterName" class="form-control border-start-0" placeholder="Search name or skills...">
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <select id="filterStatus" class="form-select form-select-sm">
+                        <option value="">All Statuses</option>
+                        <option value="Pending">Review (Pending)</option>
+                        <option value="Selected">Shortlisted</option>
+                        <option value="Rejected">Rejected</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <input type="number" id="filterScore" class="form-control form-control-sm" placeholder="Min Score %" min="0" max="100" value="0">
+                </div>
+                <div class="col-md-2">
+                    <select id="sortBy" class="form-select form-select-sm">
+                        <option value="rank_asc">Rank</option>
+                        <option value="score_desc">Score ↓</option>
+                        <option value="score_asc">Score ↑</option>
+                        <option value="name_asc">Name</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Table -->
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0" id="candidatesTable">
+                    <thead>
+                        <tr>
+                            <th style="width: 40px;"><input type="checkbox" id="selectAll" class="form-check-input"></th>
+                            <th style="width: 70px;">Rank</th>
+                            <th>Candidate Info</th>
+                            <th style="width: 100px;">AI Match</th>
+                            <th style="width: 120px;">Review Status</th>
+                            <th class="text-end" style="width: 140px;">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for c in candidates %}
+                        <tr data-id="{{ c.id }}" data-name="{{ c.name|lower }}" data-status="{{ c.status }}" data-score="{{ c.final_score }}" data-rank="{{ c.rank }}" data-skillmatch="{{ c.matched_skills|length }}" class="candidate-row">
+                            <td><input type="checkbox" class="candidate-select form-check-input" data-id="{{ c.id }}"></td>
+                            <td>
+                                <div class="fw-bold small">#{{ c.rank }}</div>
+                            </td>
+                            <td>
+                                <div class="d-flex align-items-center gap-2">
+                                    <div class="fw-bold text-main" style="font-family: 'Outfit', sans-serif;">{{ c.name }}</div>
+                                    {% if c.rank == 1 %}
+                                    <span class="top-candidate-badge"><i class="bi bi-stars"></i> TOP MATCH</span>
+                                    {% endif %}
+                                </div>
+                                <div class="text-muted x-small mt-0.5"><i class="bi bi-file-earmark-code me-1"></i>{{ c.source_file }}</div>
+                                <div class="mt-1.5 d-flex flex-wrap gap-1">
+                                    {% for tag in c.tags[:3] %}
+                                    <span class="badge bg-opacity-10 bg-primary text-primary border x-small">{{ tag }}</span>
+                                    {% endfor %}
+                                </div>
+                            </td>
+                            <td>
+                                <span class="badge score-badge {% if c.final_score >= 80 %}score-high{% elif c.final_score >= 60 %}score-mid{% else %}score-low{% endif %}">
+                                    {{ c.final_score }}%
+                                </span>
+                            </td>
+                            <td>
+                                {% if c.status == 'Selected' %}
+                                <span class="status-pill status-selected"><i class="bi bi-check-circle-fill"></i> Shortlisted</span>
+                                {% elif c.status == 'Rejected' %}
+                                <span class="status-pill status-rejected"><i class="bi bi-x-circle-fill"></i> Rejected</span>
+                                {% else %}
+                                <span class="status-pill status-pending"><i class="bi bi-hourglass-split"></i> Review</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-end">
+                                <div class="btn-group btn-group-sm">
+                                    <button class="btn btn-outline-primary preview-btn" data-id="{{ c.id }}" title="AI Deep Insights"><i class="bi bi-stars"></i></button>
+                                    <button class="btn btn-outline-primary status-btn" data-id="{{ c.id }}" data-status="Selected" title="Shortlist Candidate"><i class="bi bi-check2 text-success"></i></button>
+                                    <button class="btn btn-outline-primary status-btn" data-id="{{ c.id }}" data-status="Rejected" title="Reject Candidate"><i class="bi bi-x-lg text-danger"></i></button>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Tab: Analytics Dashboard -->
+<div id="tab-analytics" class="tab-pane-custom d-none">
+    <div class="row g-4 animate-fadeIn">
+        <div class="col-md-6">
+            <div class="card chart-card border-0 h-100">
+                <div class="card-header bg-transparent border-0 pb-0">
+                    <h6 class="m-0 small text-muted fw-bold"><i class="bi bi-diagram-3 me-2 text-primary"></i>Required Skills Frequency</h6>
+                </div>
+                <div class="card-body"><canvas id="skillsChart" height="220"></canvas></div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card chart-card border-0 h-100">
+                <div class="card-header bg-transparent border-0 pb-0">
+                    <h6 class="m-0 small text-muted fw-bold"><i class="bi bi-pie-chart me-2 text-success"></i>Score Buckets Distribution</h6>
+                </div>
+                <div class="card-body"><canvas id="gapChart" height="220"></canvas></div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card chart-card border-0 h-100">
+                <div class="card-header bg-transparent border-0 pb-0">
+                    <h6 class="m-0 small text-muted fw-bold"><i class="bi bi-graph-up me-2 text-info"></i>Candidate Screening Trend</h6>
+                </div>
+                <div class="card-body"><canvas id="trendsChart" height="220"></canvas></div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card chart-card border-0 h-100">
+                <div class="card-header bg-transparent border-0 pb-0">
+                    <h6 class="m-0 small text-muted fw-bold"><i class="bi bi-compass me-2 text-danger"></i>Experience Radar Breakdown</h6>
+                </div>
+                <div class="card-body"><canvas id="expDistChart" height="220"></canvas></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Tab: Reports & Exports -->
+<div id="tab-reports" class="tab-pane-custom d-none">
+    <div class="row g-4 animate-fadeIn">
+        <!-- Download Reports Cards -->
+        <div class="col-md-6">
+            <div class="card border-0 h-100">
+                <div class="card-body p-4">
+                    <h6 class="fw-bold mb-3"><i class="bi bi-cloud-download text-primary me-2"></i>Download Workspace Reports</h6>
+                    <p class="text-muted small">Export screening scores, rank summaries, and fit analysis tags.</p>
+                    <div class="d-grid gap-3 mt-4">
+                        <a href="{{ url_for('screening.export_excel') }}" class="btn btn-primary py-3">
+                            <i class="bi bi-file-earmark-spreadsheet-fill me-2 fs-5"></i>Export to Excel Spreadsheet (.xlsx)
+                        </a>
+                        <a href="{{ url_for('screening.export_pdf') }}" class="btn btn-outline-primary py-3">
+                            <i class="bi bi-file-earmark-pdf-fill me-2 fs-5"></i>Download PDF Rank Summary
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Presets / Screening History Highlights -->
+        <div class="col-md-6">
+            <div class="card border-0 h-100">
+                <div class="card-body p-4">
+                    <h6 class="fw-bold mb-3"><i class="bi bi-clock-history text-warning me-2"></i>Recent Weights Preset Logs</h6>
+                    <div id="presetHistoryLogs" class="small text-muted">
+                        <!-- Loaded dynamically in js -->
+                        <div class="text-center py-4">
+                            <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
+                            <div class="x-small mt-2">Loading presets history...</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Tab: AI Copilot -->
+<div id="tab-copilot" class="tab-pane-custom d-none">
+    <div class="card border-0 animate-fadeIn h-100" style="min-height: calc(100vh - 200px);">
+        <div class="card-body p-4 d-flex flex-column" style="height: 100%;">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="fw-bold m-0"><i class="bi bi-robot text-primary me-2"></i>AI Workspace Copilot</h5>
+                <span class="badge bg-primary bg-opacity-10 text-primary border">Powered by HireMind LLM</span>
+            </div>
+            <p class="text-muted small">Analyze candidate metrics, compare profiles, and query your candidate pool using natural language. Try using voice recognition by clicking the microphone button.</p>
+            
+            <div class="chat-area flex-grow-1 p-3 overflow-auto border rounded mb-3" id="copilotChatMessages" style="height: 450px; background: var(--bg-soft); border-color: var(--border) !important;">
+                <div class="chat-msg bot">Hello! I am your HireMind AI Workspace Copilot. Ask me questions about candidate fits, strengths, skill gap summaries, or who to shortlist. How can I help you today?</div>
+            </div>
+            
+            <div class="input-group">
+                <button class="btn btn-outline-primary" id="copilotMicBtn" type="button" title="Speak your question"><i class="bi bi-mic-fill"></i></button>
+                <input type="text" id="copilotChatInput" class="form-control" placeholder="Ask Copilot about your candidates..." aria-label="Query pool...">
+                <button class="btn btn-primary px-4" id="sendCopilotChat" aria-label="Send query"><i class="bi bi-send-fill"></i> Send</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Tab: Interview Assistant -->
+<div id="tab-interview" class="tab-pane-custom d-none">
+    <div class="card border-0 animate-fadeIn mb-4">
+        <div class="card-body p-4">
+            <div class="d-flex align-items-center justify-content-between mb-3">
+                <div>
+                    <h5 class="fw-bold m-0"><i class="bi bi-chat-text text-primary me-2"></i>AI Interview Assistant</h5>
+                    <p class="text-muted small mb-0">Generate candidate-specific interview question guides across domains.</p>
+                </div>
+                <div style="min-width: 250px;">
+                    <label for="interviewCandidateSelect" class="form-label x-small text-uppercase fw-bold text-muted mb-1">Select Candidate</label>
+                    <select id="interviewCandidateSelect" class="form-select form-select-sm">
+                        {% for c in candidates %}
+                        <option value="{{ c.id }}">#{{ c.rank }} - {{ c.name }} (Score: {{ c.final_score }}%)</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Questions Container -->
+    <div id="interviewQuestionsWrapper" class="animate-fadeIn">
+        <div class="row g-4">
+            <!-- Technical questions -->
+            <div class="col-md-6">
+                <div class="card border-0 h-100">
+                    <div class="card-body p-4">
+                        <div class="d-flex align-items-center gap-2 mb-3">
+                            <span class="p-2 bg-primary bg-opacity-10 text-primary rounded"><i class="bi bi-code-slash"></i></span>
+                            <h6 class="fw-bold m-0 text-main">Technical & Domain Knowledge</h6>
+                        </div>
+                        <div id="techQuestionsList" class="d-flex flex-column gap-3">
+                            <!-- JS loaded -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Project questions -->
+            <div class="col-md-6">
+                <div class="card border-0 h-100">
+                    <div class="card-body p-4">
+                        <div class="d-flex align-items-center gap-2 mb-3">
+                            <span class="p-2 bg-success bg-opacity-10 text-success rounded"><i class="bi bi-kanban"></i></span>
+                            <h6 class="fw-bold m-0 text-main">Project & System Architecture</h6>
+                        </div>
+                        <div id="projectQuestionsList" class="d-flex flex-column gap-3">
+                            <!-- JS loaded -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Behavioral questions -->
+            <div class="col-md-6">
+                <div class="card border-0 h-100">
+                    <div class="card-body p-4">
+                        <div class="d-flex align-items-center gap-2 mb-3">
+                            <span class="p-2 bg-warning bg-opacity-10 text-warning rounded"><i class="bi bi-people"></i></span>
+                            <h6 class="fw-bold m-0 text-main">Behavioral & Collaboration</h6>
+                        </div>
+                        <div id="behavioralQuestionsList" class="d-flex flex-column gap-3">
+                            <!-- JS loaded -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- HR questions -->
+            <div class="col-md-6">
+                <div class="card border-0 h-100">
+                    <div class="card-body p-4">
+                        <div class="d-flex align-items-center gap-2 mb-3">
+                            <span class="p-2 bg-danger bg-opacity-10 text-danger rounded"><i class="bi bi-person-lines-fill"></i></span>
+                            <h6 class="fw-bold m-0 text-main">HR Fit & Career Goals</h6>
+                        </div>
+                        <div id="hrQuestionsList" class="d-flex flex-column gap-3">
+                            <!-- JS loaded -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Tab: Skill Gap Analysis -->
+<div id="tab-skillgap" class="tab-pane-custom d-none">
+    <div class="card border-0 animate-fadeIn mb-4">
+        <div class="card-body p-4">
+            <div class="d-flex align-items-center justify-content-between mb-3">
+                <div>
+                    <h5 class="fw-bold m-0"><i class="bi bi-bullseye text-primary me-2"></i>AI Skill Gap Analysis</h5>
+                    <p class="text-muted small mb-0">Deconstruct individual skill match profiles against standard job requirements.</p>
+                </div>
+                <div style="min-width: 250px;">
+                    <label for="skillGapCandidateSelect" class="form-label x-small text-uppercase fw-bold text-muted mb-1">Select Candidate</label>
+                    <select id="skillGapCandidateSelect" class="form-select form-select-sm">
+                        {% for c in candidates %}
+                        <option value="{{ c.id }}">#{{ c.rank }} - {{ c.name }} (Score: {{ c.final_score }}%)</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Skill Gap Display Wrapper -->
+    <div id="skillGapWrapper" class="row g-4 animate-fadeIn">
+        <!-- Overview Stats cards -->
+        <div class="col-lg-4">
+            <div class="card border-0 mb-4 h-100">
+                <div class="card-body p-4 d-flex flex-column justify-content-between">
+                    <div>
+                        <h6 class="fw-bold mb-3"><i class="bi bi-speedometer2 text-primary me-2"></i>Match Efficiency</h6>
+                        <div class="d-flex flex-column gap-3">
+                            <div class="p-3 border rounded" style="background: var(--input-bg);">
+                                <div class="small text-muted mb-1">Keyword Score</div>
+                                <h3 class="m-0 fw-bold text-main" id="gapKeywordScore">0%</h3>
+                            </div>
+                            <div class="p-3 border rounded" style="background: var(--input-bg);">
+                                <div class="small text-muted mb-1">Semantic Fit</div>
+                                <h3 class="m-0 fw-bold text-main" id="gapSemanticScore">0%</h3>
+                            </div>
+                            <div class="p-3 border rounded" style="background: var(--input-bg);">
+                                <div class="small text-muted mb-1">ATS Score</div>
+                                <h3 class="m-0 fw-bold text-main" id="gapAtsScore">0%</h3>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Skills list side-by-side -->
+        <div class="col-lg-8">
+            <div class="card border-0 mb-4">
+                <div class="card-body p-4">
+                    <h6 class="fw-bold mb-3"><i class="bi bi-cpu text-primary me-2"></i>Target JD Skills Comparison</h6>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <div class="p-3 border rounded h-100" style="background: var(--green-soft); border-color: rgba(34, 197, 94, 0.2) !important;">
+                                <h6 class="small fw-bold text-success mb-2"><i class="bi bi-patch-check-fill me-2"></i>Matched Competencies</h6>
+                                <div id="gapMatchedSkillsList" class="d-flex flex-wrap gap-2">
+                                    <!-- JS loaded -->
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="p-3 border rounded h-100" style="background: var(--red-soft); border-color: rgba(239, 68, 68, 0.2) !important;">
+                                <h6 class="small fw-bold text-danger mb-2"><i class="bi bi-patch-exclamation-fill me-2"></i>Missing Competencies</h6>
+                                <div id="gapMissingSkillsList" class="d-flex flex-wrap gap-2">
+                                    <!-- JS loaded -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Gauge Chart -->
+            <div class="card border-0">
+                <div class="card-body p-4">
+                    <h6 class="fw-bold mb-3"><i class="bi bi-compass text-primary me-2"></i>Evolutionary Match Gauge</h6>
+                    <canvas id="gapEvolutionGaugeChart" height="150"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+</div>
+{% endif %}
+
+<!-- Candidate Details Modal -->
+<div class="modal fade" id="resumeModal" tabindex="-1" aria-labelledby="resumeModalTitle" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="resumeModalTitle">Candidate Profile</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <!-- AI Summary Panel -->
+        <div class="card border-0 bg-opacity-10 bg-primary mb-4" style="border: 1px solid var(--border-active) !important;">
+          <div class="card-body p-4">
+            <div class="d-flex align-items-center gap-2 mb-3">
+                <i class="bi bi-stars text-primary fs-4"></i>
+                <h6 class="m-0 fw-bold" style="font-family: 'Outfit', sans-serif;">Explainable AI Analysis</h6>
+            </div>
+            <div id="aiExplanation" class="text-main mb-3" style="line-height: 1.6; font-size: 0.95rem;"></div>
+
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <div class="p-3 rounded h-100" style="background: var(--green-soft); border: 1px solid rgba(34, 197, 94, 0.2);">
+                        <h6 class="small fw-bold mb-2 text-success"><i class="bi bi-check-circle-fill me-2"></i>Key Strengths</h6>
+                        <ul id="aiStrengths" class="x-small mb-0 ps-3" style="line-height: 1.6;"></ul>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="p-3 rounded h-100" style="background: var(--red-soft); border: 1px solid rgba(239, 68, 68, 0.2);">
+                        <h6 class="small fw-bold mb-2 text-danger"><i class="bi bi-exclamation-circle-fill me-2"></i>Gaps & Weaknesses</h6>
+                        <ul id="aiWeaknesses" class="x-small mb-0 ps-3" style="line-height: 1.6;"></ul>
+                    </div>
+                </div>
+            </div>
+
+            <div id="rejectionAlert" class="mt-3 d-none">
+                <div class="alert alert-danger border-0 small mb-0 d-flex align-items-center gap-2">
+                    <i class="bi bi-exclamation-octagon-fill text-danger fs-5"></i>
+                    <span><b>Rejection Reason:</b> <span id="rejectionText"></span></span>
+                </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ATS, Fraud, and Success Insights -->
+        <div class="row g-3 mb-4">
+            <!-- Left Side: ATS & Fraud -->
+            <div class="col-lg-6">
+                <div class="card border-0 mb-3">
+                    <div class="card-body p-4">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h6 class="fw-bold m-0 text-main"><i class="bi bi-file-earmark-check text-primary me-2"></i>ATS Compatibility</h6>
+                            <span class="badge bg-primary text-white" id="modalAtsScore">0.0%</span>
+                        </div>
+                        <div class="mb-3">
+                            <label class="x-small text-muted text-uppercase fw-bold mb-1">Keyword Coverage</label>
+                            <div class="progress" style="height: 6px; background: var(--border);">
+                                <div class="progress-bar bg-primary" id="modalAtsCoverageBar" role="progressbar" style="width: 0%"></div>
+                            </div>
+                            <div class="text-end x-small mt-1 text-muted" id="modalAtsCoverageText">0.0%</div>
+                        </div>
+                        <div class="x-small">
+                            <div class="fw-bold text-main mb-1">Formatting & Parsing Issues</div>
+                            <ul id="modalAtsIssuesList" class="ps-3 text-muted mb-2"></ul>
+                            <div class="fw-bold text-main mb-1">ATS Optimization Tips</div>
+                            <ul id="modalAtsSuggestionsList" class="ps-3 text-muted mb-0"></ul>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card border-0">
+                    <div class="card-body p-4">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h6 class="fw-bold m-0 text-main"><i class="bi bi-shield-check text-success me-2"></i>Fraud & Authenticity</h6>
+                            <span class="badge" id="modalAuthenticityScoreBadge">100%</span>
+                        </div>
+                        <div class="d-flex flex-column gap-2 mb-3">
+                            <div class="d-flex justify-content-between align-items-center p-2 rounded x-small" style="background: var(--input-bg);">
+                                <span class="text-muted">Keyword Stuffing</span>
+                                <span class="badge" id="modalFraudStuffingBadge">None</span>
+                            </div>
+                            <div class="d-flex justify-content-between align-items-center p-2 rounded x-small" style="background: var(--input-bg);">
+                                <span class="text-muted">Duplicate Content</span>
+                                <span class="badge" id="modalFraudDuplicateBadge">None</span>
+                            </div>
+                        </div>
+                        <div class="x-small">
+                            <div class="fw-bold text-main mb-1">Suspicious Claims / Timeline Flags</div>
+                            <ul id="modalFraudClaimsList" class="ps-3 text-muted mb-0"></ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Side: Circular SVG Gauges -->
+            <div class="col-lg-6">
+                <div class="card border-0 h-100">
+                    <div class="card-body p-4 d-flex flex-column justify-content-between">
+                        <h6 class="fw-bold mb-3 text-main"><i class="bi bi-stars text-info me-2"></i>AI Candidate Success Predictions</h6>
+                        <div class="d-flex flex-column gap-4 justify-content-around py-3">
+                            <!-- Gauge 1 -->
+                            <div class="d-flex align-items-center gap-3">
+                                <div class="svg-gauge-container" style="position: relative; width: 70px; height: 70px;">
+                                    <svg width="70" height="70" class="svg-gauge">
+                                        <circle class="gauge-bg" cx="35" cy="35" r="28" stroke="var(--border)" stroke-width="6" fill="transparent"></circle>
+                                        <circle class="gauge-value" id="gaugeInterview" cx="35" cy="35" r="28" stroke="var(--blue)" stroke-width="6" fill="transparent" stroke-dasharray="175.84" stroke-dashoffset="175.84" stroke-linecap="round" transform="rotate(-90 35 35)"></circle>
+                                    </svg>
+                                    <div class="gauge-text" id="gaugeInterviewText" style="position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 700; font-family: 'Outfit', sans-serif; color: var(--text-main);">0%</div>
+                                </div>
+                                <div>
+                                    <div class="small fw-bold text-main">Interview Conversion Probability</div>
+                                    <div class="x-small text-muted">Likelihood of passing standard screening filters</div>
+                                </div>
+                            </div>
+                            <!-- Gauge 2 -->
+                            <div class="d-flex align-items-center gap-3">
+                                <div class="svg-gauge-container" style="position: relative; width: 70px; height: 70px;">
+                                    <svg width="70" height="70" class="svg-gauge">
+                                        <circle class="gauge-bg" cx="35" cy="35" r="28" stroke="var(--border)" stroke-width="6" fill="transparent"></circle>
+                                        <circle class="gauge-value" id="gaugeHiring" cx="35" cy="35" r="28" stroke="var(--green)" stroke-width="6" fill="transparent" stroke-dasharray="175.84" stroke-dashoffset="175.84" stroke-linecap="round" transform="rotate(-90 35 35)"></circle>
+                                    </svg>
+                                    <div class="gauge-text" id="gaugeHiringText" style="position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 700; font-family: 'Outfit', sans-serif; color: var(--text-main);">0%</div>
+                                </div>
+                                <div>
+                                    <div class="small fw-bold text-main">Hiring Selection Probability</div>
+                                    <div class="x-small text-muted">Core fit to key deliverables and weights</div>
+                                </div>
+                            </div>
+                            <!-- Gauge 3 -->
+                            <div class="d-flex align-items-center gap-3">
+                                <div class="svg-gauge-container" style="position: relative; width: 70px; height: 70px;">
+                                    <svg width="70" height="70" class="svg-gauge">
+                                        <circle class="gauge-bg" cx="35" cy="35" r="28" stroke="var(--border)" stroke-width="6" fill="transparent"></circle>
+                                        <circle class="gauge-value" id="gaugeReadiness" cx="35" cy="35" r="28" stroke="var(--amber)" stroke-width="6" fill="transparent" stroke-dasharray="175.84" stroke-dashoffset="175.84" stroke-linecap="round" transform="rotate(-90 35 35)"></circle>
+                                    </svg>
+                                    <div class="gauge-text" id="gaugeReadinessText" style="position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 700; font-family: 'Outfit', sans-serif; color: var(--text-main);">0%</div>
+                                </div>
+                                <div>
+                                    <div class="small fw-bold text-main">Role Readiness Score</div>
+                                    <div class="x-small text-muted">Competency rate in critical domains</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Row: Timeline & Skills Progress Bars -->
+        <div class="row g-3 mb-4">
+            <!-- Skill Strength Meters -->
+            <div class="col-lg-6">
+                <div class="card border-0 h-100">
+                    <div class="card-body p-4">
+                        <h6 class="fw-bold mb-3 text-main"><i class="bi bi-bar-chart text-success me-2"></i>Skill Proficiency Meters</h6>
+                        <div class="d-flex flex-column gap-3" id="modalSkillStrengths">
+                            <!-- Loaded in JS -->
+                        </div>
+                        <div class="row g-3 mt-3 pt-3 border-top" style="border-color: var(--border) !important;">
+                            <div class="col-md-6">
+                                <div class="small mb-2 fw-bold text-success"><i class="bi bi-check-lg me-1"></i>Matched Skills</div>
+                                <div id="matchedSkills" class="d-flex flex-wrap gap-1"></div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="small mb-2 fw-bold text-danger"><i class="bi bi-x-lg me-1"></i>Missing Skills</div>
+                                <div id="missingSkills" class="d-flex flex-wrap gap-1"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Professional / Academic Timeline -->
+            <div class="col-lg-6">
+                <div class="card border-0 h-100">
+                    <div class="card-body p-4">
+                        <h6 class="fw-bold mb-3 text-main"><i class="bi bi-clock-history text-primary me-2"></i>Professional & Academic Timeline</h6>
+                        <div class="vertical-timeline" id="modalTimeline" style="max-height: 380px; overflow-y: auto;">
+                            <!-- Loaded in JS -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="small mb-2 fw-bold text-muted"><i class="bi bi-file-earmark-text me-1"></i>Resume Document Text</div>
+        <pre id="resumePreview" class="resume-preview"></pre>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Comparison Modal -->
+<div class="modal fade" id="compareModal" tabindex="-1" aria-labelledby="compareModalTitle" aria-hidden="true">
+  <div class="modal-dialog modal-xl">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="compareModalTitle"><i class="bi bi-layout-split text-primary me-2"></i>Candidate Comparison Dashboard</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div id="comparisonTable" class="table-responsive"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Data Tags holding JSON sets -->
+<script id="candidatesData" type="application/json">{{ candidates|tojson }}</script>
+<script id="skillFrequencyData" type="application/json">{{ skill_frequency|tojson }}</script>
+{% endblock %}
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+{% endblock %}

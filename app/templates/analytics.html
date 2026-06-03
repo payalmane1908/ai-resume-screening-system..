@@ -1,0 +1,449 @@
+{% extends 'base.html' %}
+{% block title %}Pool Analytics | HireMind AI{% endblock %}
+{% block content %}
+
+<!-- Analytics Header -->
+<div class="d-flex justify-content-between align-items-center mb-4 animate-fadeIn">
+    <div>
+        <h4 class="m-0 fw-bold"><i class="bi bi-bar-chart text-primary me-2"></i>Talent Pool Analytics</h4>
+        <p class="text-muted small mb-0">Visual insights on skill distributions, experience metrics, and matching score trends.</p>
+    </div>
+    <div>
+        <a class="btn btn-outline-primary btn-sm" href="{{ url_for('screening.dashboard') }}">
+            <i class="bi bi-arrow-left me-1"></i>Back to Dashboard
+        </a>
+    </div>
+</div>
+
+{% if not candidates %}
+<div class="card border-0 animate-fadeIn">
+    <div class="card-body empty-state text-center py-5">
+        <div class="empty-icon mb-3"><i class="bi bi-bar-chart-line-fill text-muted fs-1"></i></div>
+        <h5>No data available for analytics</h5>
+        <p class="text-muted">Upload resumes and run a screening to visualize candidate statistics and skill gaps.</p>
+        <a class="btn btn-primary" href="{{ url_for('screening.index') }}">
+            <i class="bi bi-plus-circle me-1"></i>Begin AI Screening
+        </a>
+    </div>
+</div>
+{% else %}
+
+<!-- KPI Cards -->
+<div class="row g-3 mb-4 animate-fadeIn">
+    <div class="col-lg-3 col-md-6 col-12">
+        <div class="card stat-card">
+            <div class="card-body">
+                <div class="stat-label">Total Resumes</div>
+                <div class="stat-value">{{ candidates|length }}</div>
+                <div class="x-small text-muted">Parsed and analyzed profiles</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-3 col-md-6 col-12">
+        <div class="card stat-card">
+            <div class="card-body">
+                <div class="stat-label">Shortlisted (Selected)</div>
+                <div class="stat-value text-success">{{ status_counts.Selected }}</div>
+                <div class="x-small text-muted">Candidates marked as hireable</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-3 col-md-6 col-12">
+        <div class="card stat-card">
+            <div class="card-body">
+                <div class="stat-label">Average AI Score</div>
+                <div class="stat-value" style="color: var(--accent);">{{ avg_score }}%</div>
+                <div class="x-small text-muted">Across all screened candidates</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-3 col-md-6 col-12">
+        <div class="card stat-card">
+            <div class="card-body">
+                <div class="stat-label">Average Experience</div>
+                <div class="stat-value">{{ avg_exp }} <span style="font-size: 1rem;">yrs</span></div>
+                <div class="x-small text-muted">Average years of experience</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Charts Section -->
+<div class="row g-4 mb-4 animate-fadeIn">
+    <!-- Skills Frequency Chart -->
+    <div class="col-md-6">
+        <div class="card border-0 h-100">
+            <div class="card-body p-4">
+                <h6 class="fw-bold mb-3"><i class="bi bi-diagram-3 text-primary me-2"></i>Matched Skills Distribution</h6>
+                <div style="height: 300px; position: relative;">
+                    <canvas id="skillsFreqChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Skill Gaps Chart -->
+    <div class="col-md-6">
+        <div class="card border-0 h-100">
+            <div class="card-body p-4">
+                <h6 class="fw-bold mb-3"><i class="bi bi-exclamation-triangle text-warning me-2"></i>Top Missing Skills (Gaps)</h6>
+                <div style="height: 300px; position: relative;">
+                    <canvas id="skillsGapsChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4 animate-fadeIn">
+    <!-- Score Distribution Chart -->
+    <div class="col-md-6">
+        <div class="card border-0 h-100">
+            <div class="card-body p-4">
+                <h6 class="fw-bold mb-3"><i class="bi bi-pie-chart text-success me-2"></i>AI Score Distribution</h6>
+                <div style="height: 300px; position: relative;">
+                    <canvas id="scoreDistChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Experience vs Score Scatter/Bubble Chart -->
+    <div class="col-md-6">
+        <div class="card border-0 h-100">
+            <div class="card-body p-4">
+                <h6 class="fw-bold mb-3"><i class="bi bi-grid-3x3-gap text-info me-2"></i>Experience vs. Match Score</h6>
+                <div style="height: 300px; position: relative;">
+                    <canvas id="expVsScoreChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4 mb-4 animate-fadeIn">
+    <!-- Candidate Status Distribution -->
+    <div class="col-md-6">
+        <div class="card border-0 h-100">
+            <div class="card-body p-4">
+                <h6 class="fw-bold mb-3"><i class="bi bi-person-check text-primary me-2"></i>Candidate Status Breakdown</h6>
+                <div style="height: 300px; position: relative;">
+                    <canvas id="statusDistChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Experience Level Ranges -->
+    <div class="col-md-6">
+        <div class="card border-0 h-100">
+            <div class="card-body p-4">
+                <h6 class="fw-bold mb-3"><i class="bi bi-pie-chart-fill text-success me-2"></i>Experience Level Ranges</h6>
+                <div style="height: 300px; position: relative;">
+                    <canvas id="expRangesChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4 mb-4 animate-fadeIn">
+    <!-- Required Skills Tag Cloud Heatmap -->
+    <div class="col-12">
+        <div class="card border-0">
+            <div class="card-body p-4">
+                <h6 class="fw-bold mb-3"><i class="bi bi-cloud text-info me-2"></i>Required Skills Frequency Heatmap (Tag Cloud)</h6>
+                <div id="skillsWordCloud" class="d-flex flex-wrap align-items-center justify-content-center gap-3 py-4" style="min-height: 200px; background: var(--bg-soft); border-radius: var(--radius-md);">
+                    <!-- Tag cloud elements loaded in JS -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Data Tags holding JSON sets -->
+<script id="skillFreqData" type="application/json">{{ skill_freq|tojson }}</script>
+<script id="skillGapsData" type="application/json">{{ skill_gaps|tojson }}</script>
+<script id="statusCountsData" type="application/json">{{ status_counts|tojson }}</script>
+<script id="candidatesData" type="application/json">{{ candidates|tojson }}</script>
+
+{% endif %}
+
+{% endblock %}
+
+{% block scripts %}
+{% if candidates %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Read JSON data
+    const skillFreq = JSON.parse(document.getElementById('skillFreqData').textContent);
+    const skillGaps = JSON.parse(document.getElementById('skillGapsData').textContent);
+    const statusCounts = JSON.parse(document.getElementById('statusCountsData').textContent);
+    const candidates = JSON.parse(document.getElementById('candidatesData').textContent);
+
+    // CSS variables helper
+    const getCssVar = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+    const primaryColor = getCssVar('--accent') || '#7C3AED';
+    const textMuted = getCssVar('--text-muted') || '#94A3B8';
+    const borderCol = getCssVar('--border') || 'rgba(255, 255, 255, 0.08)';
+
+    // Theme responsive chart options helper
+    const getChartOptions = (title) => ({
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                display: false,
+            },
+            tooltip: {
+                backgroundColor: 'rgba(15, 23, 42, 0.9)',
+                titleColor: '#fff',
+                bodyColor: '#fff',
+                borderColor: 'rgba(255, 255, 255, 0.1)',
+                borderWidth: 1,
+                padding: 10,
+                cornerRadius: 8
+            }
+        },
+        scales: {
+            x: {
+                grid: { color: borderCol },
+                ticks: { color: textMuted, font: { family: 'Inter' } }
+            },
+            y: {
+                grid: { color: borderCol },
+                ticks: { color: textMuted, font: { family: 'Inter' } }
+            }
+        }
+    });
+
+    // 1. Matched Skills Chart
+    const skillsFreqCtx = document.getElementById('skillsFreqChart').getContext('2d');
+    const sortedFreq = Object.entries(skillFreq).sort((a,b) => b[1] - a[1]).slice(0, 10);
+    const skillsFreqLabels = sortedFreq.map(item => item[0]);
+    const skillsFreqValues = sortedFreq.map(item => item[1]);
+
+    new Chart(skillsFreqCtx, {
+        type: 'bar',
+        data: {
+            labels: skillsFreqLabels,
+            datasets: [{
+                data: skillsFreqValues,
+                backgroundColor: primaryColor,
+                borderRadius: 6,
+                borderSkipped: false
+            }]
+        },
+        options: getChartOptions()
+    });
+
+    // 2. Skill Gaps Chart
+    const skillsGapsCtx = document.getElementById('skillsGapsChart').getContext('2d');
+    const sortedGaps = Object.entries(skillGaps).sort((a,b) => b[1] - a[1]).slice(0, 10);
+    const skillsGapsLabels = sortedGaps.map(item => item[0]);
+    const skillsGapsValues = sortedGaps.map(item => item[1]);
+
+    new Chart(skillsGapsCtx, {
+        type: 'bar',
+        data: {
+            labels: skillsGapsLabels,
+            datasets: [{
+                data: skillsGapsValues,
+                backgroundColor: 'rgba(239, 68, 68, 0.85)',
+                borderRadius: 6,
+                borderSkipped: false
+            }]
+        },
+        options: getChartOptions()
+    });
+
+    // 3. Score Distribution Chart
+    const scoreDistCtx = document.getElementById('scoreDistChart').getContext('2d');
+    // Bucket scores: <50, 50-65, 65-80, >=80
+    const buckets = { '<50': 0, '50-65': 0, '65-80': 0, '80+': 0 };
+    candidates.forEach(c => {
+        const s = c.final_score;
+        if (s < 50) buckets['<50']++;
+        else if (s < 65) buckets['50-65']++;
+        else if (s < 80) buckets['65-80']++;
+        else buckets['80+']++;
+    });
+
+    new Chart(scoreDistCtx, {
+        type: 'doughnut',
+        data: {
+            labels: Object.keys(buckets),
+            datasets: [{
+                data: Object.values(buckets),
+                backgroundColor: [
+                    'rgba(239, 68, 68, 0.8)',
+                    'rgba(249, 115, 22, 0.8)',
+                    'rgba(59, 130, 246, 0.8)',
+                    'rgba(34, 197, 94, 0.8)'
+                ],
+                borderWidth: 0,
+                hoverOffset: 4
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: true,
+                    position: 'bottom',
+                    labels: {
+                        color: textMuted,
+                        font: { family: 'Inter', size: 11 },
+                        padding: 15
+                    }
+                }
+            }
+        }
+    });
+
+    // 4. Experience vs Score Scatter Chart
+    const expVsScoreCtx = document.getElementById('expVsScoreChart').getContext('2d');
+    const scatterData = candidates.map(c => ({
+        x: c.years_experience,
+        y: c.final_score,
+        name: c.name
+    }));
+
+    new Chart(expVsScoreCtx, {
+        type: 'scatter',
+        data: {
+            datasets: [{
+                label: 'Candidates',
+                data: scatterData,
+                backgroundColor: primaryColor,
+                pointRadius: 6,
+                pointHoverRadius: 8
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const point = context.raw;
+                            return `${point.name}: Experience: ${point.x} yrs, Score: ${point.y}%`;
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    title: { display: true, text: 'Experience (Years)', color: textMuted, font: { family: 'Inter', size: 11 } },
+                    grid: { color: borderCol },
+                    ticks: { color: textMuted }
+                },
+                y: {
+                    title: { display: true, text: 'AI Match Score (%)', color: textMuted, font: { family: 'Inter', size: 11 } },
+                    grid: { color: borderCol },
+                    ticks: { color: textMuted }
+                }
+            }
+        }
+    });
+
+    // 5. Candidate Status Breakdown
+    const statusCtx = document.getElementById('statusDistChart').getContext('2d');
+    new Chart(statusCtx, {
+        type: 'pie',
+        data: {
+            labels: ['Shortlisted', 'Pending Review', 'Rejected'],
+            datasets: [{
+                data: [statusCounts.Selected || 0, statusCounts.Pending || 0, statusCounts.Rejected || 0],
+                backgroundColor: [
+                    'rgba(34, 197, 94, 0.85)',
+                    'rgba(245, 158, 11, 0.85)',
+                    'rgba(239, 68, 68, 0.85)'
+                ],
+                borderWidth: 0
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: {
+                        color: textMuted,
+                        font: { family: 'Inter', size: 11 },
+                        padding: 15
+                    }
+                }
+            }
+        }
+    });
+
+    // 6. Experience Level Ranges
+    const expRangesCtx = document.getElementById('expRangesChart').getContext('2d');
+    const expBins = { '0-2 yrs (Junior)': 0, '2-5 yrs (Mid)': 0, '5-10 yrs (Senior)': 0, '10+ yrs (Lead)': 0 };
+    candidates.forEach(c => {
+        const yrs = c.years_experience || 0;
+        if (yrs <= 2) expBins['0-2 yrs (Junior)']++;
+        else if (yrs <= 5) expBins['2-5 yrs (Mid)']++;
+        else if (yrs <= 10) expBins['5-10 yrs (Senior)']++;
+        else expBins['10+ yrs (Lead)']++;
+    });
+
+    new Chart(expRangesCtx, {
+        type: 'doughnut',
+        data: {
+            labels: Object.keys(expBins),
+            datasets: [{
+                data: Object.values(expBins),
+                backgroundColor: [
+                    'rgba(59, 130, 246, 0.8)',
+                    'rgba(139, 92, 246, 0.8)',
+                    'rgba(245, 158, 11, 0.8)',
+                    'rgba(34, 197, 94, 0.8)'
+                ],
+                borderWidth: 0
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: {
+                        color: textMuted,
+                        font: { family: 'Inter', size: 11 },
+                        padding: 15
+                    }
+                }
+            }
+        }
+    });
+
+    // 7. Required Skills tag cloud (HTML based Heatmap)
+    const escapeHTML = (str) => {
+        if (!str) return "";
+        return str.replace(/[&<>'"]/g, 
+            (tag) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag)
+        );
+    };
+    const sortedCloud = Object.entries(skillFreq).sort((a,b) => b[1] - a[1]);
+    const cloudContainer = document.getElementById('skillsWordCloud');
+    if (cloudContainer && sortedCloud.length) {
+        cloudContainer.innerHTML = sortedCloud.map(([skill, count]) => {
+            const size = Math.min(1.8, 0.85 + count * 0.15); // max 1.8rem
+            const opacity = Math.min(1.0, 0.35 + count * 0.12);
+            return `<span class="badge text-white px-3 py-2" style="font-size: ${size}rem; background: rgba(124, 58, 237, ${opacity}); border: 1px solid rgba(124, 58, 237, 0.3); font-family: 'Outfit'; font-weight: 600;" title="Required in ${count} profiles">${escapeHTML(skill)} (${count})</span>`;
+        }).join("");
+    } else if (cloudContainer) {
+        cloudContainer.innerHTML = '<span class="text-muted small">No skill frequency data available</span>';
+    }
+});
+</script>
+{% endif %}
+<script src="{{ url_for('static', filename='js/main.js') }}"></script>
+{% endblock %}
